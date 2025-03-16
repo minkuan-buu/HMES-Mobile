@@ -1,116 +1,143 @@
 import 'package:flutter/material.dart';
+import 'package:hmes/pages/device.dart';
 import 'package:hmes/pages/login.dart';
 import 'package:hmes/components/components.dart';
 import 'package:hmes/pages/register.dart';
+import 'package:hmes/helper/tokenHelper.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
-class HomePage extends StatelessWidget {
-  const HomePage({super.key});
+class HomePage extends StatefulWidget {
   static String id = 'home_screen';
+  final bool isLoggedIn;
+
+  const HomePage({super.key, required this.isLoggedIn});
+
+  @override
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+  @override
+  Widget build(BuildContext context) {
+    if (!widget.isLoggedIn) {
+      // Sử dụng widget.isLoggedIn thay vì HomePage.isLoggedIn
+      return Scaffold(
+        backgroundColor: Colors.white,
+        body: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(25),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const TopScreenImage(screenImageName: 'home.jpg'),
+                Expanded(
+                  child: SingleChildScrollView(
+                    child: Padding(
+                      padding: const EdgeInsets.only(
+                        right: 15.0,
+                        left: 15,
+                        bottom: 15,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          const ScreenTitle(title: 'Welcome to HMES'),
+                          const Text(
+                            'Manage your hydroponic monitoring system.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: Colors.grey, fontSize: 20),
+                          ),
+                          const SizedBox(height: 15),
+                          Hero(
+                            tag: 'login_btn',
+                            child: CustomButton(
+                              buttonText: 'Login',
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => LoginPage(),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          Hero(
+                            tag: 'signup_btn',
+                            child: CustomButton(
+                              buttonText: 'Sign Up',
+                              isOutlined: true,
+                              onPressed: () {
+                                Navigator.pushNamed(context, SignUpPage.id);
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    } else {
+      return const BottomNavigationBarExample();
+    }
+  }
+}
+
+class BottomNavigationBarExample extends StatefulWidget {
+  const BottomNavigationBarExample({super.key});
+
+  @override
+  State<BottomNavigationBarExample> createState() =>
+      _BottomNavigationBarExampleState();
+}
+
+class _BottomNavigationBarExampleState
+    extends State<BottomNavigationBarExample> {
+  int _selectedIndex = 0;
+  static const TextStyle style = TextStyle(color: Colors.black, fontSize: 20);
+
+  static final List<Widget> _bodyContent = [
+    Text("Thiết bị", style: style),
+    Text("Thông báo", style: style),
+    Text("Tài khoản", style: style),
+  ];
+
+  // Danh sách tiêu đề theo từng trang
+  static final List<String> _titles = ["Thiết bị", "Thông báo", "Tài khoản"];
+
+  void _changeIndex(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(25),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const TopScreenImage(screenImageName: 'home.jpg'),
-              Expanded(
-                child: SingleChildScrollView(
-                  child: Padding(
-                    padding: const EdgeInsets.only(
-                      right: 15.0,
-                      left: 15,
-                      bottom: 15,
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        ScreenTitle(
-                          title: 'Welcome to HMES',
-                          pageId: HomePage.id,
-                        ),
-                        const Text(
-                          'Manage your hydroponic monitoring system.',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(color: Colors.grey, fontSize: 20),
-                        ),
-                        const SizedBox(height: 15),
-                        Hero(
-                          tag: 'login_btn',
-                          child: CustomButton(
-                            buttonText: 'Login',
-                            onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => LoginPage(),
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        Hero(
-                          tag: 'signup_btn',
-                          child: CustomButton(
-                            buttonText: 'Sign Up',
-                            isOutlined: true,
-                            onPressed: () {
-                              Navigator.pushNamed(context, SignUpPage.id);
-                            },
-                          ),
-                        ),
-                        const SizedBox(height: 25),
-                        // const Text(
-                        //   'Sign up using',
-                        //   style: TextStyle(color: Colors.grey, fontSize: 16),
-                        // ),
-                        // Row(
-                        //   mainAxisAlignment: MainAxisAlignment.center,
-                        //   children: [
-                        //     IconButton(
-                        //       onPressed: () {},
-                        //       icon: CircleAvatar(
-                        //         radius: 25,
-                        //         child: Image.asset(
-                        //           'assets/images/icons/facebook.png',
-                        //         ),
-                        //       ),
-                        //     ),
-                        //     IconButton(
-                        //       onPressed: () {},
-                        //       icon: CircleAvatar(
-                        //         radius: 25,
-                        //         backgroundColor: Colors.transparent,
-                        //         child: Image.asset(
-                        //           'assets/images/icons/google.png',
-                        //         ),
-                        //       ),
-                        //     ),
-                        //     IconButton(
-                        //       onPressed: () {},
-                        //       icon: CircleAvatar(
-                        //         radius: 25,
-                        //         child: Image.asset(
-                        //           'assets/images/icons/linkedin.png',
-                        //         ),
-                        //       ),
-                        //     ),
-                        //   ],
-                        // ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ],
+      body: Center(
+        child:
+            _selectedIndex == 0
+                ? const DevicePage()
+                : _bodyContent.elementAt(_selectedIndex),
+      ),
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _selectedIndex,
+        onTap: _changeIndex,
+        items: const <BottomNavigationBarItem>[
+          BottomNavigationBarItem(icon: Icon(Icons.devices), label: "Thiết bị"),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.notifications_active),
+            label: "Thông báo",
           ),
-        ),
+          BottomNavigationBarItem(icon: Icon(Icons.person), label: "Tài khoản"),
+        ],
       ),
     );
   }
