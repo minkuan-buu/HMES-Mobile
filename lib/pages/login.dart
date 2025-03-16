@@ -49,7 +49,10 @@ class _LoginPageState extends State<LoginPage> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        ScreenTitle(title: 'Login', backId: LoginPage.backId),
+                        ScreenTitle(
+                          title: 'Đăng nhập',
+                          backId: LoginPage.backId,
+                        ),
                         SizedBox(height: 20),
                         CustomTextField(
                           textField: TextField(
@@ -71,7 +74,7 @@ class _LoginPageState extends State<LoginPage> {
                             },
                             style: const TextStyle(fontSize: 20),
                             decoration: kTextInputDecoration.copyWith(
-                              hintText: 'Password',
+                              hintText: 'Mật khẩu',
                             ),
                           ),
                         ),
@@ -84,9 +87,9 @@ class _LoginPageState extends State<LoginPage> {
                             : Container(),
                         SizedBox(height: 20),
                         CustomBottomScreen(
-                          textButton: 'Login',
+                          textButton: 'Đăng nhập',
                           heroTag: 'login_btn',
-                          question: 'Forgot password?',
+                          question: 'Quên mật khẩu?',
                           buttonPressed: () async {
                             FocusManager.instance.primaryFocus?.unfocus();
                             setState(() {

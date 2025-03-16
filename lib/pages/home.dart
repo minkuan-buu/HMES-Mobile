@@ -42,9 +42,9 @@ class _HomePageState extends State<HomePage> {
                         crossAxisAlignment: CrossAxisAlignment.center,
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: [
-                          const ScreenTitle(title: 'Welcome to HMES'),
+                          const ScreenTitle(title: 'Chào mừng đến với HMES'),
                           const Text(
-                            'Manage your hydroponic monitoring system.',
+                            'Quản lý thiết bị thủy canh của bạn một cách dễ dàng.',
                             textAlign: TextAlign.center,
                             style: TextStyle(color: Colors.grey, fontSize: 20),
                           ),
@@ -52,7 +52,7 @@ class _HomePageState extends State<HomePage> {
                           Hero(
                             tag: 'login_btn',
                             child: CustomButton(
-                              buttonText: 'Login',
+                              buttonText: 'Đăng nhập',
                               onPressed: () {
                                 Navigator.push(
                                   context,
@@ -67,7 +67,7 @@ class _HomePageState extends State<HomePage> {
                           Hero(
                             tag: 'signup_btn',
                             child: CustomButton(
-                              buttonText: 'Sign Up',
+                              buttonText: 'Đăng ký',
                               isOutlined: true,
                               onPressed: () {
                                 Navigator.pushNamed(context, SignUpPage.id);
