@@ -4,27 +4,17 @@ import 'package:flutter/material.dart';
 import 'package:hmes/components/components.dart';
 import 'package:hmes/constants.dart';
 import 'package:hmes/context/baseAPI_URL.dart';
+import 'package:hmes/helper/tokenHelper.dart';
 import 'package:loading_overlay/loading_overlay.dart';
 import 'package:hmes/pages/home.dart';
 import 'package:http/http.dart' as http;
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
-const storage = FlutterSecureStorage();
-
-Future<void> saveToken(
-  String token,
-  String refreshToken,
-  String deviceId,
-) async {
-  await storage.write(key: 'token', value: token);
-  await storage.write(key: 'refreshToken', value: refreshToken);
-  await storage.write(key: 'deviceId', value: deviceId);
-}
 // import 'package:firebase_auth/firebase_auth.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
   static String id = 'login_screen';
+  static String backId = 'home_screen';
 
   @override
   State<LoginPage> createState() => _LoginPageState();
@@ -34,6 +24,7 @@ class _LoginPageState extends State<LoginPage> {
   // final _auth = FirebaseAuth.instance;
   late String _email;
   late String _password;
+  late String _loginStatus = '';
   bool _saving = false;
 
   @override
@@ -58,7 +49,7 @@ class _LoginPageState extends State<LoginPage> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        ScreenTitle(title: 'Login', pageId: LoginPage.id),
+                        ScreenTitle(title: 'Login', backId: LoginPage.backId),
                         SizedBox(height: 20),
                         CustomTextField(
                           textField: TextField(
@@ -85,6 +76,13 @@ class _LoginPageState extends State<LoginPage> {
                           ),
                         ),
                         SizedBox(height: 20),
+                        _loginStatus != null
+                            ? Text(
+                              _loginStatus,
+                              style: TextStyle(color: Colors.red, fontSize: 20),
+                            )
+                            : Container(),
+                        SizedBox(height: 20),
                         CustomBottomScreen(
                           textButton: 'Login',
                           heroTag: 'login_btn',
@@ -99,34 +97,31 @@ class _LoginPageState extends State<LoginPage> {
                               //   email: _email,
                               //   password: _password,
                               // );
-                              _login();
+                              await _login();
                               if (context.mounted) {
                                 setState(() {
                                   _saving = false;
-                                  Navigator.popAndPushNamed(
+                                  Navigator.push(
                                     context,
-                                    LoginPage.id,
+                                    MaterialPageRoute(
+                                      builder: (context) {
+                                        return HomePage(isLoggedIn: true);
+                                      },
+                                    ),
                                   );
                                 });
                                 // Navigator.pushNamed(context, WelcomeScreen.id);
                               }
                             } catch (e) {
-                              signUpAlert(
-                                context: context,
-                                onPressed: () {
-                                  setState(() {
-                                    _saving = false;
-                                  });
-                                  Navigator.popAndPushNamed(
-                                    context,
-                                    LoginPage.id,
-                                  );
-                                },
-                                title: 'WRONG PASSWORD OR EMAIL',
-                                desc:
-                                    'Confirm your email and password and try again',
-                                btnText: 'Try Now',
-                              ).show();
+                              // signUpAlert(
+                              // context: context,
+                              // onPressed: () {
+                              setState(() {
+                                _saving = false;
+                              });
+                              //Navigator.popAndPushNamed(context, LoginPage.id);
+                              // },
+                              // ).show();
                             }
                           },
                           questionPressed: () {
@@ -155,7 +150,7 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  void _login() async {
+  Future _login() async {
     final response = await http.post(
       Uri.parse('${apiUrl}auth/login'),
       headers: <String, String>{
@@ -200,6 +195,9 @@ class _LoginPageState extends State<LoginPage> {
       }
     } else {
       print('Login failed');
+      Map<String, dynamic> responseJson = jsonDecode(response.body);
+      _loginStatus = responseJson['message'];
+      throw _loginStatus;
     }
   }
 }

@@ -71,15 +71,14 @@ class TopScreenImage extends StatelessWidget {
 }
 
 class ScreenTitle extends StatelessWidget {
-  const ScreenTitle({super.key, required this.title, required this.pageId});
+  const ScreenTitle({super.key, required this.title, this.backId});
   final String title;
-  final String pageId;
+  final String? backId;
 
   @override
   Widget build(BuildContext context) {
     return AppBar(
       automaticallyImplyLeading: false,
-
       title: Text(
         title,
         style: const TextStyle(
@@ -91,17 +90,17 @@ class ScreenTitle extends StatelessWidget {
       centerTitle: true,
       backgroundColor: Colors.white,
       elevation: 0,
-      leading: GestureDetector(
-        onTap: () {
-          Navigator.pushNamed(context, HomePage.id);
-        },
-        child:
-            pageId != 'home_screen'
-                ? Container(
-                  margin: EdgeInsets.all(10),
+      leading:
+          backId != null
+              ? GestureDetector(
+                onTap: () {
+                  Navigator.pop(context);
+                },
+                child: Container(
+                  margin: const EdgeInsets.all(10),
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
-                    color: Color(0xffF7F8F8),
+                    color: const Color(0xffF7F8F8),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: SvgPicture.asset(
@@ -109,9 +108,53 @@ class ScreenTitle extends StatelessWidget {
                     height: 15,
                     width: 15,
                   ),
-                )
-                : null,
+                ),
+              )
+              : null,
+    );
+  }
+}
+
+class MiniScreenTitle extends StatelessWidget {
+  const MiniScreenTitle({super.key, required this.title, this.backId});
+  final String title;
+  final String? backId;
+
+  @override
+  Widget build(BuildContext context) {
+    return AppBar(
+      automaticallyImplyLeading: false,
+      title: Text(
+        title,
+        style: const TextStyle(
+          fontSize: 25,
+          fontWeight: FontWeight.bold,
+          color: kTextColor,
+        ),
       ),
+      backgroundColor: Colors.white,
+      elevation: 0,
+      leading:
+          backId != null
+              ? GestureDetector(
+                onTap: () {
+                  Navigator.pushNamed(context, backId!);
+                },
+                child: Container(
+                  margin: const EdgeInsets.all(10),
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: const Color(0xffF7F8F8),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: SvgPicture.asset(
+                    'assets/images/icons/back_arrow.svg',
+                    height: 15,
+                    width: 15,
+                  ),
+                ),
+              )
+              : null,
     );
   }
 }
