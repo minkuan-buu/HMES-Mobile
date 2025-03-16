@@ -10,6 +10,7 @@ import 'package:loading_overlay/loading_overlay.dart';
 class SignUpPage extends StatefulWidget {
   const SignUpPage({super.key});
   static String id = 'signup_screen';
+  static String backId = 'home_screen';
 
   @override
   State<SignUpPage> createState() => _SignUpPageState();
@@ -48,7 +49,10 @@ class _SignUpPageState extends State<SignUpPage> {
                         mainAxisAlignment: MainAxisAlignment.spaceAround,
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          ScreenTitle(title: 'Sign Up', pageId: SignUpPage.id),
+                          ScreenTitle(
+                            title: 'Sign Up',
+                            backId: SignUpPage.backId,
+                          ),
                           CustomTextField(
                             textField: TextField(
                               onChanged: (value) {
