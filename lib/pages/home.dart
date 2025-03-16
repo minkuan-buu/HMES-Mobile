@@ -2,9 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:hmes/pages/device.dart';
 import 'package:hmes/pages/login.dart';
 import 'package:hmes/components/components.dart';
+import 'package:hmes/pages/profile.dart';
 import 'package:hmes/pages/register.dart';
-import 'package:hmes/helper/tokenHelper.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 
 class HomePage extends StatefulWidget {
   static String id = 'home_screen';
@@ -125,6 +124,8 @@ class _BottomNavigationBarExampleState
         child:
             _selectedIndex == 0
                 ? const DevicePage()
+                : _selectedIndex == 2
+                ? const ProfilePage()
                 : _bodyContent.elementAt(_selectedIndex),
       ),
       bottomNavigationBar: BottomNavigationBar(
