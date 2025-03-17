@@ -38,16 +38,6 @@ class _MainViewState extends State<MainView> {
             return ResetPasswordPage(controller: controller);
           } else if (index == 3) {
             return VerifyScreen(controller: controller);
-          } else if (index == 4) {
-            return DevicePage(controller: controller);
-          } else if (index == 5) {
-            return ProfilePage(controller: controller);
-          } else if (index == 6) {
-            return InfomationPage(controller: controller);
-          } else if (index == 7) {
-            return ChangePassword(controller: controller);
-          } else if (index == 8) {
-            return Logout(controller: controller);
           }
         },
       ),

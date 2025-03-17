@@ -20,39 +20,15 @@ class _ProfilePageState extends State<ProfilePage> {
   ];
   int? selectedIndex;
 
-  late List<InkWell> pages;
+  late List<Widget> pages;
 
   @override
   void initState() {
     super.initState();
     pages = [
-      InkWell(
-        onTap: () {
-          widget.controller.animateToPage(
-            6,
-            duration: const Duration(milliseconds: 500),
-            curve: Curves.ease,
-          );
-        },
-      ),
-      InkWell(
-        onTap: () {
-          widget.controller.animateToPage(
-            7,
-            duration: const Duration(milliseconds: 500),
-            curve: Curves.ease,
-          );
-        },
-      ),
-      InkWell(
-        onTap: () {
-          widget.controller.animateToPage(
-            4,
-            duration: const Duration(milliseconds: 500),
-            curve: Curves.ease,
-          );
-        },
-      ),
+      const InfomationPage(),
+      const ChangePassword(),
+      Logout(controller: widget.controller),
     ];
   }
 

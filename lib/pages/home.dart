@@ -58,11 +58,7 @@ class _HomePageState extends State<HomePage> {
                             child: CustomButton(
                               buttonText: 'Đăng nhập',
                               onPressed: () {
-                                widget.controller.animateToPage(
-                                  1,
-                                  duration: const Duration(milliseconds: 500),
-                                  curve: Curves.ease,
-                                );
+                                Navigator.pushNamed(context, LoginPage.id);
                               },
                             ),
                           ),

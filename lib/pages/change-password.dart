@@ -5,14 +5,12 @@ import 'package:hmes/components/components.dart';
 import 'package:hmes/constants.dart';
 import 'package:hmes/context/baseAPI_URL.dart';
 import 'package:loading_overlay/loading_overlay.dart';
-import 'package:hmes/helper/tokenHelper.dart';
+import 'package:hmes/helper/secureStorageHelper.dart';
 import 'package:http/http.dart' as http;
 import 'package:fluttertoast/fluttertoast.dart';
 
 class ChangePassword extends StatefulWidget {
-  const ChangePassword({super.key, required this.controller});
-
-  final PageController controller;
+  const ChangePassword({super.key});
 
   @override
   State<ChangePassword> createState() => _ChangePasswordState();

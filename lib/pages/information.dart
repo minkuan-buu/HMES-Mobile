@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 
 class InfomationPage extends StatefulWidget {
-  const InfomationPage({super.key, required this.controller});
-
-  final PageController controller;
+  const InfomationPage({super.key});
 
   @override
   State<InfomationPage> createState() => _InfomationPageState();

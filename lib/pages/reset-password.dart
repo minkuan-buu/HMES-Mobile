@@ -1,10 +1,17 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_timer_countdown/flutter_timer_countdown.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 import 'package:hmes/components/components.dart';
 
 import 'package:hmes/components/otp_form.dart';
+import 'package:hmes/context/baseAPI_URL.dart';
+import 'package:hmes/helper/sharedPreferencesHelper.dart';
 import 'package:hmes/pages/login.dart';
 import 'package:loading_overlay/loading_overlay.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:http/http.dart' as http;
 
 class ResetPasswordPage extends StatefulWidget {
   const ResetPasswordPage({super.key, required this.controller});
@@ -17,6 +24,7 @@ class ResetPasswordPage extends StatefulWidget {
 class _ResetPasswordPageState extends State<ResetPasswordPage> {
   final TextEditingController _emailController = TextEditingController();
   bool _saving = false;
+  late String _resetPassword = '';
 
   @override
   Widget build(BuildContext context) {
@@ -59,7 +67,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
                       ),
                       const SizedBox(height: 16),
                       const Text(
-                        'Enter your email address associated with your account',
+                        'Nhập email của bạn để nhận mã xác nhận',
                         style: TextStyle(
                           color: Color(0xFF837E93),
                           fontSize: 11,
@@ -100,19 +108,32 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
                           width: 329,
                           height: 56,
                           child: ElevatedButton(
-                            onPressed: () {
+                            onPressed: () async {
                               setState(() {
                                 _saving = true;
                               });
-                              InkWell(
-                                onTap: () {
-                                  widget.controller.animateToPage(
-                                    3,
-                                    duration: const Duration(milliseconds: 500),
-                                    curve: Curves.ease,
+                              try {
+                                await _sendOTP();
+                                if (context.mounted) {
+                                  setState(() {
+                                    _saving = false;
+                                  });
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder:
+                                          (context) => VerifyScreen(
+                                            controller: widget.controller,
+                                          ),
+                                    ),
                                   );
-                                },
-                              );
+                                  // Navigator.pushNamed(context, WelcomeScreen.id);
+                                }
+                              } catch (e) {
+                                setState(() {
+                                  _saving = false;
+                                });
+                              }
                             },
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFF9F7BFF),
@@ -139,6 +160,64 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
       ),
     );
   }
+
+  Future _sendOTP() async {
+    if (_emailController.value.text.isEmpty) {
+      Fluttertoast.showToast(
+        msg: "Vui lòng nhập email của bạn!",
+        toastLength: Toast.LENGTH_SHORT,
+        gravity: ToastGravity.BOTTOM,
+        timeInSecForIosWeb: 1,
+        textColor: Colors.black,
+        fontSize: 16.0,
+      );
+      return;
+    }
+
+    final response = await http.post(
+      Uri.parse('${apiUrl}otp/send'),
+      headers: <String, String>{
+        'Content-Type': 'application/json; charset=UTF-8',
+      },
+      body: jsonEncode("${_emailController.value.text}"),
+    );
+    Map<String, String> key = {'email': _emailController.value.text};
+    await saveTempKey(key);
+
+    if (response.statusCode != 200) {
+      Map<String, dynamic> responseJson = jsonDecode(response.body);
+      _resetPassword = responseJson['message'];
+      switch (_resetPassword) {
+        case "Can not send OTP right now!":
+          _resetPassword = "Không thể gửi mã OTP lúc này!";
+          break;
+        case "User not found!":
+          _resetPassword = "Người dùng không tồn tại";
+          break;
+        default:
+      }
+      Fluttertoast.showToast(
+        msg: _resetPassword,
+        toastLength: Toast.LENGTH_SHORT,
+        gravity: ToastGravity.BOTTOM,
+        timeInSecForIosWeb: 1,
+        textColor: Colors.black,
+        fontSize: 16.0,
+      );
+
+      throw _resetPassword;
+    } else {
+      _resetPassword = 'Mã xác nhận đã được gửi đến email của bạn!';
+      Fluttertoast.showToast(
+        msg: _resetPassword,
+        toastLength: Toast.LENGTH_SHORT,
+        gravity: ToastGravity.BOTTOM,
+        timeInSecForIosWeb: 1,
+        textColor: Colors.black,
+        fontSize: 16.0,
+      );
+    }
+  }
 }
 
 class VerifyScreen extends StatefulWidget {
@@ -150,6 +229,24 @@ class VerifyScreen extends StatefulWidget {
 
 class _VerifyScreenState extends State<VerifyScreen> {
   String? varifyCode;
+  String? _email;
+  bool isResendDisabled = true; // Ban đầu disable nút Resend
+  bool showTimer = true; // Ban đầu hiển thị Timer
+
+  @override
+  void initState() {
+    super.initState();
+    _loadEmail();
+  }
+
+  Future<void> _loadEmail() async {
+    String? email = await getTempKey('email');
+    if (mounted && email != null) {
+      setState(() {
+        _email = email;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -168,37 +265,32 @@ class _VerifyScreenState extends State<VerifyScreen> {
           // ),
           const SizedBox(height: 18),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 50),
+            padding: const EdgeInsets.symmetric(horizontal: 30),
             child: Column(
               textDirection: TextDirection.ltr,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Confirm the code\n',
-                  style: TextStyle(
-                    color: Color(0xFF755DC1),
-                    fontSize: 25,
-                    fontFamily: 'Poppins',
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
+                const ScreenTitle(title: 'Confirm OTP'),
                 const SizedBox(height: 16),
-                Container(
-                  width: 329,
-                  height: 56,
-                  decoration: BoxDecoration(
-                    border: Border.all(
-                      width: 1,
-                      color: const Color(0xFF9F7BFF),
+                Focus(
+                  autofocus: true,
+                  child: Container(
+                    width: 600,
+                    height: 75,
+                    decoration: BoxDecoration(
+                      border: Border.all(
+                        width: 1,
+                        color: const Color(0xFF9F7BFF),
+                      ),
+                      borderRadius: const BorderRadius.all(Radius.circular(10)),
                     ),
-                    borderRadius: const BorderRadius.all(Radius.circular(10)),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 60),
-                    child: OtpForm(
-                      callBack: (code) {
-                        varifyCode = code;
-                      },
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 1),
+                      child: OtpForm(
+                        callBack: (code) {
+                          varifyCode = code;
+                        },
+                      ),
                     ),
                   ),
                 ),
@@ -214,7 +306,7 @@ class _VerifyScreenState extends State<VerifyScreen> {
                         backgroundColor: const Color(0xFF9F7BFF),
                       ),
                       child: const Text(
-                        'confirm',
+                        'Confirm',
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: 15,
@@ -229,37 +321,49 @@ class _VerifyScreenState extends State<VerifyScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Text(
-                      'Resend  ',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: Color(0xFF755DC1),
-                        fontSize: 13,
-                        // fontFamily: 'Poppins',
-                        fontWeight: FontWeight.w400,
+                    TextButton(
+                      // onPressed: isResendDisabled ? null : _resendOtp,
+                      onPressed: () {},
+                      child: Text(
+                        'Resend',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color:
+                              isResendDisabled
+                                  ? Colors.grey
+                                  : const Color(0xFF755DC1),
+                          fontSize: 13,
+                          fontWeight: FontWeight.w400,
+                        ),
                       ),
                     ),
-                    TimerCountdown(
-                      spacerWidth: 0,
-                      enableDescriptions: false,
-                      colonsTextStyle: const TextStyle(
-                        color: Color(0xFF755DC1),
-                        fontSize: 13,
-                        // fontFamily: 'Poppins',
-                        fontWeight: FontWeight.w400,
+                    if (showTimer)
+                      TimerCountdown(
+                        spacerWidth: 0,
+                        enableDescriptions: false,
+                        colonsTextStyle: const TextStyle(
+                          color: Color(0xFF755DC1),
+                          fontSize: 13,
+                          // fontFamily: 'Poppins',
+                          fontWeight: FontWeight.w400,
+                        ),
+                        timeTextStyle: const TextStyle(
+                          color: Color(0xFF755DC1),
+                          fontSize: 13,
+                          //  fontFamily: 'Poppins',
+                          fontWeight: FontWeight.w400,
+                        ),
+                        format: CountDownTimerFormat.minutesSeconds,
+                        endTime: DateTime.now().add(
+                          const Duration(minutes: 2, seconds: 0),
+                        ),
+                        onEnd: () {
+                          setState(() {
+                            isResendDisabled = false; // Bật nút Resend
+                            showTimer = false; // Ẩn Timer
+                          });
+                        },
                       ),
-                      timeTextStyle: const TextStyle(
-                        color: Color(0xFF755DC1),
-                        fontSize: 13,
-                        //  fontFamily: 'Poppins',
-                        fontWeight: FontWeight.w400,
-                      ),
-                      format: CountDownTimerFormat.minutesSeconds,
-                      endTime: DateTime.now().add(
-                        const Duration(minutes: 2, seconds: 0),
-                      ),
-                      onEnd: () {},
-                    ),
                   ],
                 ),
                 const SizedBox(height: 37),
@@ -276,8 +380,8 @@ class _VerifyScreenState extends State<VerifyScreen> {
                   curve: Curves.ease,
                 );
               },
-              child: const Text(
-                'A 6-digit verification code has been sent to info@aidendesign.com',
+              child: Text(
+                'A 6-digit verification code has been sent to $_email',
                 style: TextStyle(
                   color: Color(0xFF837E93),
                   fontSize: 11,

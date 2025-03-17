@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:hmes/components/components.dart';
 import 'package:hmes/constants.dart';
 import 'package:hmes/context/baseAPI_URL.dart';
-import 'package:hmes/helper/tokenHelper.dart';
+import 'package:hmes/helper/secureStorageHelper.dart';
 import 'package:hmes/pages/reset-password.dart';
 import 'package:loading_overlay/loading_overlay.dart';
 import 'package:hmes/pages/home.dart';
@@ -108,10 +108,15 @@ class _LoginPageState extends State<LoginPage> {
                                   _saving = false;
                                 });
 
-                                widget.controller.animateToPage(
-                                  0,
-                                  duration: const Duration(milliseconds: 500),
-                                  curve: Curves.ease,
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder:
+                                        (context) => HomePage(
+                                          isLoggedIn: true,
+                                          controller: widget.controller,
+                                        ),
+                                  ),
                                 );
                                 // Navigator.pushNamed(context, WelcomeScreen.id);
                               }
@@ -139,10 +144,19 @@ class _LoginPageState extends State<LoginPage> {
                             //   btnText: 'Reset Now',
                             //   context: context,
                             // ).show();
-                            widget.controller.animateToPage(
-                              2,
-                              duration: const Duration(milliseconds: 500),
-                              curve: Curves.ease,
+                            // widget.controller.animateToPage(
+                            //   2,
+                            //   duration: const Duration(milliseconds: 500),
+                            //   curve: Curves.ease,
+                            // );
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder:
+                                    (context) => ResetPasswordPage(
+                                      controller: widget.controller,
+                                    ),
+                              ),
                             );
                           },
                         ),
