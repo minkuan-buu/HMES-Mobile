@@ -46,7 +46,7 @@ class _HomePageState extends State<HomePage> {
                         crossAxisAlignment: CrossAxisAlignment.center,
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: [
-                          const ScreenTitle(title: 'Chào mừng đến với HMES'),
+                          const ScreenTitle(title: 'HMES'),
                           const Text(
                             'Quản lý thiết bị thủy canh của bạn một cách dễ dàng.',
                             textAlign: TextAlign.center,

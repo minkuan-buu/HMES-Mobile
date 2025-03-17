@@ -270,7 +270,7 @@ class _VerifyScreenState extends State<VerifyScreen> {
               textDirection: TextDirection.ltr,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const ScreenTitle(title: 'Confirm OTP'),
+                const ScreenTitle(title: 'Xác thực OTP'),
                 const SizedBox(height: 16),
                 Focus(
                   autofocus: true,
@@ -325,7 +325,7 @@ class _VerifyScreenState extends State<VerifyScreen> {
                       // onPressed: isResendDisabled ? null : _resendOtp,
                       onPressed: () {},
                       child: Text(
-                        'Resend',
+                        'Gửi lại mã OTP',
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           color:
@@ -381,7 +381,7 @@ class _VerifyScreenState extends State<VerifyScreen> {
                 );
               },
               child: Text(
-                'A 6-digit verification code has been sent to $_email',
+                'Mã xác thực 6 số đã được gửi tới email: $_email',
                 style: TextStyle(
                   color: Color(0xFF837E93),
                   fontSize: 11,
