@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
 class DevicePage extends StatefulWidget {
-  const DevicePage({super.key});
+  const DevicePage({super.key, required this.controller});
+  static String id = 'device_screen';
+  final PageController controller;
 
   @override
   State<DevicePage> createState() => _DevicePageState();

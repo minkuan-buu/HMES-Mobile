@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:hmes/pages/home.dart';
 import 'package:hmes/pages/login.dart';
 import 'package:hmes/pages/register.dart';
-import 'package:hmes/helper/tokenHelper.dart';
+import 'package:hmes/helper/secureStorageHelper.dart';
 // import 'package:hmes/pages/welcome.dart';
 // import 'package:firebase_core/firebase_core.dart';
 
@@ -25,6 +25,7 @@ class MyApp extends StatelessWidget {
   final bool isLoggedIn;
 
   const MyApp({super.key, required this.isLoggedIn});
+  static PageController controller = PageController(initialPage: 0);
 
   @override
   Widget build(BuildContext context) {
@@ -33,9 +34,12 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         textTheme: const TextTheme(bodyMedium: TextStyle(fontFamily: 'Ubuntu')),
       ),
-      home: HomePage(isLoggedIn: isLoggedIn), // ✅ Truyền trực tiếp vào HomePage
+      home: HomePage(
+        isLoggedIn: isLoggedIn,
+        controller: controller,
+      ), // ✅ Truyền trực tiếp vào HomePage
       routes: {
-        LoginPage.id: (context) => LoginPage(),
+        LoginPage.id: (context) => LoginPage(controller: controller),
         SignUpPage.id: (context) => SignUpPage(),
       },
     );
