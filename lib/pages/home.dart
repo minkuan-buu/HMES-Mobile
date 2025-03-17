@@ -8,8 +8,13 @@ import 'package:hmes/pages/register.dart';
 class HomePage extends StatefulWidget {
   static String id = 'home_screen';
   final bool isLoggedIn;
+  final PageController controller;
 
-  const HomePage({super.key, required this.isLoggedIn});
+  const HomePage({
+    super.key,
+    required this.isLoggedIn,
+    required this.controller,
+  });
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -53,11 +58,10 @@ class _HomePageState extends State<HomePage> {
                             child: CustomButton(
                               buttonText: 'Đăng nhập',
                               onPressed: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => LoginPage(),
-                                  ),
+                                widget.controller.animateToPage(
+                                  1,
+                                  duration: const Duration(milliseconds: 500),
+                                  curve: Curves.ease,
                                 );
                               },
                             ),
@@ -84,13 +88,15 @@ class _HomePageState extends State<HomePage> {
         ),
       );
     } else {
-      return const BottomNavigationBarExample();
+      return BottomNavigationBarExample(controller: widget.controller);
     }
   }
 }
 
 class BottomNavigationBarExample extends StatefulWidget {
-  const BottomNavigationBarExample({super.key});
+  final PageController controller;
+
+  const BottomNavigationBarExample({super.key, required this.controller});
 
   @override
   State<BottomNavigationBarExample> createState() =>
@@ -100,41 +106,34 @@ class BottomNavigationBarExample extends StatefulWidget {
 class _BottomNavigationBarExampleState
     extends State<BottomNavigationBarExample> {
   int _selectedIndex = 0;
-  static const TextStyle style = TextStyle(color: Colors.black, fontSize: 20);
-
-  static final List<Widget> _bodyContent = [
-    Text("Thiết bị", style: style),
-    Text("Thông báo", style: style),
-    Text("Tài khoản", style: style),
-  ];
-
-  // Danh sách tiêu đề theo từng trang
-  static final List<String> _titles = ["Thiết bị", "Thông báo", "Tài khoản"];
+  final PageController _pageController = PageController();
 
   void _changeIndex(int index) {
     setState(() {
       _selectedIndex = index;
+      _pageController.jumpToPage(index); // Chuyển trang ngay lập tức
     });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Center(
-        child:
-            _selectedIndex == 0
-                ? const DevicePage()
-                : _selectedIndex == 2
-                ? const ProfilePage()
-                : _bodyContent.elementAt(_selectedIndex),
+      body: PageView(
+        controller: _pageController,
+        physics: NeverScrollableScrollPhysics(), // Ngăn vuốt ngang
+        children: [
+          DevicePage(controller: widget.controller), // Trang Thiết bị
+          Text("Thông báo", style: TextStyle(fontSize: 20)),
+          ProfilePage(controller: widget.controller), // Trang Tài khoản
+        ],
       ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
         onTap: _changeIndex,
-        items: const <BottomNavigationBarItem>[
+        items: const [
           BottomNavigationBarItem(icon: Icon(Icons.devices), label: "Thiết bị"),
           BottomNavigationBarItem(
-            icon: Icon(Icons.notifications_active),
+            icon: Icon(Icons.notifications),
             label: "Thông báo",
           ),
           BottomNavigationBarItem(icon: Icon(Icons.person), label: "Tài khoản"),

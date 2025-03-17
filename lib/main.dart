@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:hmes/pages/home.dart';
 import 'package:hmes/pages/login.dart';
+import 'package:hmes/pages/main-view.dart';
 import 'package:hmes/pages/register.dart';
 import 'package:hmes/helper/tokenHelper.dart';
 // import 'package:hmes/pages/welcome.dart';
@@ -33,11 +34,11 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         textTheme: const TextTheme(bodyMedium: TextStyle(fontFamily: 'Ubuntu')),
       ),
-      home: HomePage(isLoggedIn: isLoggedIn), // ✅ Truyền trực tiếp vào HomePage
-      routes: {
-        LoginPage.id: (context) => LoginPage(),
-        SignUpPage.id: (context) => SignUpPage(),
-      },
+      home: MainView(isLoggedIn: isLoggedIn), // ✅ Truyền trực tiếp vào HomePage
+      // routes: {
+      //   LoginPage.id: (context) => LoginPage(),
+      //   SignUpPage.id: (context) => SignUpPage(),
+      // },
     );
   }
 }

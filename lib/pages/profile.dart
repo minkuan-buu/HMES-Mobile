@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:hmes/helper/logout.dart';
 import 'package:hmes/pages/change-password.dart';
 import 'package:hmes/pages/information.dart';
 
 class ProfilePage extends StatefulWidget {
-  const ProfilePage({super.key});
+  const ProfilePage({super.key, required this.controller});
   static String id = 'profile_screen';
+  final PageController controller;
 
   @override
   State<ProfilePage> createState() => _ProfilePageState();
@@ -18,11 +20,41 @@ class _ProfilePageState extends State<ProfilePage> {
   ];
   int? selectedIndex;
 
-  final List<Widget> pages = [
-    InfomationPage(),
-    ChangePassword(),
-    InfomationPage(),
-  ];
+  late List<InkWell> pages;
+
+  @override
+  void initState() {
+    super.initState();
+    pages = [
+      InkWell(
+        onTap: () {
+          widget.controller.animateToPage(
+            6,
+            duration: const Duration(milliseconds: 500),
+            curve: Curves.ease,
+          );
+        },
+      ),
+      InkWell(
+        onTap: () {
+          widget.controller.animateToPage(
+            7,
+            duration: const Duration(milliseconds: 500),
+            curve: Curves.ease,
+          );
+        },
+      ),
+      InkWell(
+        onTap: () {
+          widget.controller.animateToPage(
+            4,
+            duration: const Duration(milliseconds: 500),
+            curve: Curves.ease,
+          );
+        },
+      ),
+    ];
+  }
 
   final List<IconData> menuIcons = [Icons.person, Icons.lock, Icons.logout];
 
