@@ -4,7 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:hmes/components/components.dart';
 import 'package:hmes/constants.dart';
 import 'package:hmes/context/baseAPI_URL.dart';
-import 'package:hmes/helper/tokenHelper.dart';
+import 'package:hmes/helper/secureStorageHelper.dart';
+import 'package:hmes/pages/reset-password.dart';
 import 'package:loading_overlay/loading_overlay.dart';
 import 'package:hmes/pages/home.dart';
 import 'package:http/http.dart' as http;
@@ -12,9 +13,10 @@ import 'package:http/http.dart' as http;
 // import 'package:firebase_auth/firebase_auth.dart';
 
 class LoginPage extends StatefulWidget {
-  const LoginPage({super.key});
+  const LoginPage({super.key, required this.controller});
   static String id = 'login_screen';
   static String backId = 'home_screen';
+  final PageController controller;
 
   @override
   State<LoginPage> createState() => _LoginPageState();
@@ -61,7 +63,7 @@ class _LoginPageState extends State<LoginPage> {
                             },
                             style: const TextStyle(fontSize: 20),
                             decoration: kTextInputDecoration.copyWith(
-                              hintText: 'Email',
+                              label: Text('Email'),
                             ),
                           ),
                         ),
@@ -74,12 +76,12 @@ class _LoginPageState extends State<LoginPage> {
                             },
                             style: const TextStyle(fontSize: 20),
                             decoration: kTextInputDecoration.copyWith(
-                              hintText: 'Mật khẩu',
+                              label: Text('Mật khẩu'),
                             ),
                           ),
                         ),
                         SizedBox(height: 20),
-                        _loginStatus != null
+                        _loginStatus.isNotEmpty
                             ? Text(
                               _loginStatus,
                               style: TextStyle(color: Colors.red, fontSize: 20),
@@ -104,15 +106,18 @@ class _LoginPageState extends State<LoginPage> {
                               if (context.mounted) {
                                 setState(() {
                                   _saving = false;
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) {
-                                        return HomePage(isLoggedIn: true);
-                                      },
-                                    ),
-                                  );
                                 });
+
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder:
+                                        (context) => HomePage(
+                                          isLoggedIn: true,
+                                          controller: widget.controller,
+                                        ),
+                                  ),
+                                );
                                 // Navigator.pushNamed(context, WelcomeScreen.id);
                               }
                             } catch (e) {
@@ -128,17 +133,31 @@ class _LoginPageState extends State<LoginPage> {
                             }
                           },
                           questionPressed: () {
-                            signUpAlert(
-                              onPressed: () async {
-                                // await FirebaseAuth.instance
-                                //     .sendPasswordResetEmail(email: _email);
-                              },
-                              title: 'RESET YOUR PASSWORD',
-                              desc:
-                                  'Click on the button to reset your password',
-                              btnText: 'Reset Now',
-                              context: context,
-                            ).show();
+                            // signUpAlert(
+                            //   onPressed: () async {
+                            //     // await FirebaseAuth.instance
+                            //     //     .sendPasswordResetEmail(email: _email);
+                            //   },
+                            //   title: 'RESET YOUR PASSWORD',
+                            //   desc:
+                            //       'Click on the button to reset your password',
+                            //   btnText: 'Reset Now',
+                            //   context: context,
+                            // ).show();
+                            // widget.controller.animateToPage(
+                            //   2,
+                            //   duration: const Duration(milliseconds: 500),
+                            //   curve: Curves.ease,
+                            // );
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder:
+                                    (context) => ResetPasswordPage(
+                                      controller: widget.controller,
+                                    ),
+                              ),
+                            );
                           },
                         ),
                       ],
@@ -170,15 +189,21 @@ class _LoginPageState extends State<LoginPage> {
 
       if (setCookie != null) {
         // Chia thành danh sách các cookie
+        setCookie = Uri.decodeFull(setCookie);
         List<String> cookies = setCookie.split(',');
 
         // Tạo Map để lưu trữ cookie
         Map<String, String> cookieMap = {};
 
         for (var cookie in cookies) {
-          List<String> parts = cookie.split(';')[0].split('=');
-          if (parts.length == 2) {
-            cookieMap[parts[0].trim()] = parts[1].trim();
+          String keyValue =
+              cookie.split(';')[0]; // Lấy phần key=value trước dấu ;
+          int index = keyValue.indexOf('='); // Tìm vị trí dấu '=' đầu tiên
+
+          if (index != -1) {
+            String key = keyValue.substring(0, index).trim();
+            String value = keyValue.substring(index + 1).trim();
+            cookieMap[key] = value;
           }
         }
 
