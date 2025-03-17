@@ -170,15 +170,21 @@ class _LoginPageState extends State<LoginPage> {
 
       if (setCookie != null) {
         // Chia thành danh sách các cookie
+        setCookie = Uri.decodeFull(setCookie);
         List<String> cookies = setCookie.split(',');
 
         // Tạo Map để lưu trữ cookie
         Map<String, String> cookieMap = {};
 
         for (var cookie in cookies) {
-          List<String> parts = cookie.split(';')[0].split('=');
-          if (parts.length == 2) {
-            cookieMap[parts[0].trim()] = parts[1].trim();
+          String keyValue =
+              cookie.split(';')[0]; // Lấy phần key=value trước dấu ;
+          int index = keyValue.indexOf('='); // Tìm vị trí dấu '=' đầu tiên
+
+          if (index != -1) {
+            String key = keyValue.substring(0, index).trim();
+            String value = keyValue.substring(index + 1).trim();
+            cookieMap[key] = value;
           }
         }
 

@@ -45,9 +45,9 @@ class _HomePageState extends State<HomePage> {
                           const Text(
                             'Quản lý thiết bị thủy canh của bạn một cách dễ dàng.',
                             textAlign: TextAlign.center,
-                            style: TextStyle(color: Colors.grey, fontSize: 20),
+                            style: TextStyle(color: Colors.grey, fontSize: 18),
                           ),
-                          const SizedBox(height: 15),
+                          const SizedBox(height: 25),
                           Hero(
                             tag: 'login_btn',
                             child: CustomButton(

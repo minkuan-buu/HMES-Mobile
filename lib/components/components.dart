@@ -81,7 +81,7 @@ class ScreenTitle extends StatelessWidget {
       title: Text(
         title,
         style: const TextStyle(
-          fontSize: 30,
+          fontSize: 25,
           fontWeight: FontWeight.bold,
           color: kTextColor,
         ),
