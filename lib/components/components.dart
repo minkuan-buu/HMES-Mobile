@@ -93,7 +93,7 @@ class ScreenTitle extends StatelessWidget {
           backId != null
               ? GestureDetector(
                 onTap: () {
-                  Navigator.pop(context);
+                  Navigator.pushNamed(context, backId!);
                 },
                 child: Container(
                   margin: const EdgeInsets.all(10),
@@ -197,14 +197,11 @@ class CustomBottomScreen extends StatelessWidget {
       children: [
         Align(
           alignment: Alignment.centerLeft,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 30),
-            child: GestureDetector(
-              onTap: () {
-                questionPressed();
-              },
-              child: Text(question),
-            ),
+          child: TextButton(
+            onPressed: () {
+              questionPressed();
+            },
+            child: Text(question),
           ),
         ),
         Align(

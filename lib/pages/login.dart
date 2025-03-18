@@ -2,7 +2,6 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:hmes/components/components.dart';
-import 'package:hmes/constants.dart';
 import 'package:hmes/context/baseAPI_URL.dart';
 import 'package:hmes/helper/secureStorageHelper.dart';
 import 'package:hmes/pages/reset-password.dart';
@@ -56,27 +55,51 @@ class _LoginPageState extends State<LoginPage> {
                           backId: LoginPage.backId,
                         ),
                         SizedBox(height: 20),
-                        CustomTextField(
-                          textField: TextField(
-                            onChanged: (value) {
-                              _email = value;
-                            },
-                            style: const TextStyle(fontSize: 20),
-                            decoration: kTextInputDecoration.copyWith(
-                              label: Text('Email'),
+                        Container(
+                          width: 329,
+                          height: 56,
+                          decoration: BoxDecoration(
+                            border: Border.all(
+                              width: 1,
+                              color: const Color(0xFF9F7BFF),
+                            ),
+                            borderRadius: const BorderRadius.all(
+                              Radius.circular(10),
+                            ),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 20),
+                            child: TextField(
+                              onChanged: (value) => _email = value,
+                              decoration: const InputDecoration(
+                                border: InputBorder.none,
+                                label: Text('Email'),
+                              ),
                             ),
                           ),
                         ),
                         SizedBox(height: 20),
-                        CustomTextField(
-                          textField: TextField(
-                            obscureText: true,
-                            onChanged: (value) {
-                              _password = value;
-                            },
-                            style: const TextStyle(fontSize: 20),
-                            decoration: kTextInputDecoration.copyWith(
-                              label: Text('Mật khẩu'),
+                        Container(
+                          width: 329,
+                          height: 56,
+                          decoration: BoxDecoration(
+                            border: Border.all(
+                              width: 1,
+                              color: const Color(0xFF9F7BFF),
+                            ),
+                            borderRadius: const BorderRadius.all(
+                              Radius.circular(10),
+                            ),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 20),
+                            child: TextField(
+                              obscureText: true,
+                              onChanged: (value) => _password = value,
+                              decoration: const InputDecoration(
+                                border: InputBorder.none,
+                                label: Text('Mật khẩu'),
+                              ),
                             ),
                           ),
                         ),
