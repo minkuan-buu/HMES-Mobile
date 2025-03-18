@@ -39,6 +39,7 @@ class _MainViewState extends State<MainView> {
           } else if (index == 3) {
             return VerifyScreen(controller: controller);
           }
+          return null;
         },
       ),
     );

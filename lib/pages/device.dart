@@ -17,7 +17,7 @@ class _DevicePageState extends State<DevicePage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            padding: EdgeInsets.only(top: 35, left: 20, right: 20, bottom: 20),
+            padding: EdgeInsets.only(top: 40, left: 20, right: 20, bottom: 20),
             decoration: const BoxDecoration(
               color: Colors.blue,
               borderRadius: BorderRadius.only(

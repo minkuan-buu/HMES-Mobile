@@ -12,6 +12,20 @@ Future<void> saveToken(
   await storage.write(key: 'deviceId', value: deviceId);
 }
 
+Future<void> saveKey(Map<String, String> keyMap) async {
+  for (var entry in keyMap.entries) {
+    await storage.write(key: entry.key, value: entry.value);
+  }
+}
+
+Future<String?> getKey(String key) async {
+  return await storage.read(key: key) ?? '';
+}
+
+Future<void> removeKey(String key) async {
+  await storage.delete(key: key);
+}
+
 Future<void> updateToken(String token) async {
   await storage.write(key: 'token', value: token);
 }
