@@ -42,55 +42,80 @@ class _ChangePasswordState extends State<ChangePassword> {
                     children: [
                       SizedBox(height: 20),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        width: 329,
+                        height: 56,
                         decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(width: 2.5, color: kTextColor),
+                          border: Border.all(
+                            width: 1,
+                            color: const Color(0xFF9F7BFF),
+                          ),
+                          borderRadius: const BorderRadius.all(
+                            Radius.circular(10),
+                          ),
                         ),
-                        child: TextField(
-                          obscureText: true,
-                          onChanged: (value) {
-                            _oldPassword = value;
-                          },
-                          style: const TextStyle(fontSize: 20),
-                          decoration: kTextInputDecoration.copyWith(
-                            label: Text('Mật khẩu cũ'),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          child: TextField(
+                            obscureText: true,
+                            onChanged: (value) => {_oldPassword = value},
+                            decoration: const InputDecoration(
+                              border: InputBorder.none,
+                              label: Text('Mật khẩu mới'),
+                            ),
                           ),
                         ),
                       ),
                       SizedBox(height: 20),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        width: 329,
+                        height: 56,
                         decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(width: 2.5, color: kTextColor),
+                          border: Border.all(
+                            width: 1,
+                            color: const Color(0xFF9F7BFF),
+                          ),
+                          borderRadius: const BorderRadius.all(
+                            Radius.circular(10),
+                          ),
                         ),
-                        child: TextField(
-                          obscureText: true,
-                          onChanged: (value) {
-                            _newPassword = value;
-                          },
-                          style: const TextStyle(fontSize: 20),
-                          decoration: kTextInputDecoration.copyWith(
-                            label: Text('Mật khẩu mới'),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          child: TextField(
+                            obscureText: true,
+                            onChanged: (value) {
+                              _newPassword = value;
+                            },
+                            decoration: const InputDecoration(
+                              border: InputBorder.none,
+                              label: Text('Mật khẩu mới'),
+                            ),
                           ),
                         ),
                       ),
                       SizedBox(height: 20),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        width: 329,
+                        height: 56,
                         decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(width: 2.5, color: kTextColor),
+                          border: Border.all(
+                            width: 1,
+                            color: const Color(0xFF9F7BFF),
+                          ),
+                          borderRadius: const BorderRadius.all(
+                            Radius.circular(10),
+                          ),
                         ),
-                        child: TextField(
-                          obscureText: true,
-                          onChanged: (value) {
-                            _confirmPassword = value;
-                          },
-                          style: const TextStyle(fontSize: 20),
-                          decoration: kTextInputDecoration.copyWith(
-                            label: Text('Nhập lại mật khẩu mới'),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          child: TextField(
+                            obscureText: true,
+                            onChanged: (value) {
+                              _confirmPassword = value;
+                            },
+                            decoration: const InputDecoration(
+                              border: InputBorder.none,
+                              label: Text('Nhập lại mật khẩu mới'),
+                            ),
                           ),
                         ),
                       ),

@@ -27,6 +27,7 @@ Future<void> removeKey(String key) async {
 }
 
 Future<void> updateToken(String token) async {
+  await storage.delete(key: 'token');
   await storage.write(key: 'token', value: token);
 }
 
