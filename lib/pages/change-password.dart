@@ -4,13 +4,15 @@ import 'package:flutter/material.dart';
 import 'package:hmes/components/components.dart';
 import 'package:hmes/constants.dart';
 import 'package:hmes/context/baseAPI_URL.dart';
+import 'package:hmes/helper/logout.dart';
 import 'package:loading_overlay/loading_overlay.dart';
 import 'package:hmes/helper/secureStorageHelper.dart';
 import 'package:http/http.dart' as http;
 import 'package:fluttertoast/fluttertoast.dart';
 
 class ChangePassword extends StatefulWidget {
-  const ChangePassword({super.key});
+  const ChangePassword({super.key, required this.controller});
+  final PageController controller;
 
   @override
   State<ChangePassword> createState() => _ChangePasswordState();
@@ -212,6 +214,13 @@ class _ChangePasswordState extends State<ChangePassword> {
         timeInSecForIosWeb: 1,
         textColor: Colors.black,
         fontSize: 16.0,
+      );
+    } else if (response.statusCode == 401) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => Logout(controller: widget.controller),
+        ),
       );
     } else {
       Map<String, dynamic> responseJson = jsonDecode(response.body);

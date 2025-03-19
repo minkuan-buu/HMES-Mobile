@@ -37,12 +37,6 @@ class _LogoutState extends State<Logout> {
       },
     );
 
-    String? newAccessToken = response.headers['New-Access-Token'];
-
-    if (newAccessToken != null) {
-      await updateToken(newAccessToken);
-    }
-
     if (response.statusCode == 200) {
       _logoutStatus = 'Đã đăng xuất khỏi thiết bị!';
       await removeToken();
@@ -55,14 +49,14 @@ class _LogoutState extends State<Logout> {
         fontSize: 16.0,
       );
     } else {
-      Map<String, dynamic> responseJson = jsonDecode(response.body);
-      _logoutStatus = responseJson['message'];
-      switch (_logoutStatus) {
-        case "DeviceId cookie is missing.":
-          _logoutStatus = "Đã đăng xuất khỏi thiết bị!";
-          break;
-        default:
-      }
+      // Map<String, dynamic> responseJson = jsonDecode(response.body);
+      _logoutStatus = 'Phiên đăng nhập đã hết hạn!';
+      // switch (_logoutStatus) {
+      //   case "DeviceId cookie is missing.":
+      //     _logoutStatus = "Đã đăng xuất khỏi thiết bị!";
+      //     break;
+      //   default:
+      // }
 
       Fluttertoast.showToast(
         msg: _logoutStatus,
@@ -72,8 +66,6 @@ class _LogoutState extends State<Logout> {
         textColor: Colors.black,
         fontSize: 16.0,
       );
-
-      throw _logoutStatus;
     }
     setState(() {});
   }

@@ -3,13 +3,15 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:hmes/context/baseAPI_URL.dart';
+import 'package:hmes/helper/logout.dart';
 import 'package:hmes/helper/secureStorageHelper.dart';
 import 'package:hmes/models/profile.dart';
 import 'package:http/http.dart' as http;
 import 'package:loading_overlay/loading_overlay.dart';
 
 class InfomationPage extends StatefulWidget {
-  const InfomationPage({super.key});
+  const InfomationPage({super.key, required this.controller});
+  final PageController controller;
 
   @override
   State<InfomationPage> createState() => _InfomationPageState();
@@ -168,6 +170,13 @@ class _InfomationPageState extends State<InfomationPage> {
       setState(() {
         _isLoading = false;
       });
+    } else if (response.statusCode == 401) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => Logout(controller: widget.controller),
+        ),
+      );
     } else {
       Map<String, dynamic> responseJson = jsonDecode(response.body);
       _getInformationStatus = responseJson['message'];
