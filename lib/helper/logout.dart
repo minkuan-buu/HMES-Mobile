@@ -49,6 +49,7 @@ class _LogoutState extends State<Logout> {
         fontSize: 16.0,
       );
     } else {
+      await removeToken();
       // Map<String, dynamic> responseJson = jsonDecode(response.body);
       _logoutStatus = 'Phiên đăng nhập đã hết hạn!';
       // switch (_logoutStatus) {

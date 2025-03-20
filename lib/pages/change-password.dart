@@ -27,6 +27,9 @@ class _ChangePasswordState extends State<ChangePassword> {
 
   @override
   Widget build(BuildContext context) {
+    double screenWidth = MediaQuery.of(context).size.width;
+    double screenHeight = MediaQuery.of(context).size.height;
+
     return Scaffold(
       appBar: AppBar(title: const Text('Thay đổi mật khẩu')),
       body: LoadingOverlay(
@@ -44,8 +47,8 @@ class _ChangePasswordState extends State<ChangePassword> {
                     children: [
                       SizedBox(height: 20),
                       Container(
-                        width: 329,
-                        height: 56,
+                        width: screenWidth * 0.85,
+                        height: screenHeight * 0.06,
                         decoration: BoxDecoration(
                           border: Border.all(
                             width: 1,
@@ -69,8 +72,8 @@ class _ChangePasswordState extends State<ChangePassword> {
                       ),
                       SizedBox(height: 20),
                       Container(
-                        width: 329,
-                        height: 56,
+                        width: screenWidth * 0.85,
+                        height: screenHeight * 0.06,
                         decoration: BoxDecoration(
                           border: Border.all(
                             width: 1,
@@ -96,8 +99,8 @@ class _ChangePasswordState extends State<ChangePassword> {
                       ),
                       SizedBox(height: 20),
                       Container(
-                        width: 329,
-                        height: 56,
+                        width: screenWidth * 0.85,
+                        height: screenHeight * 0.06,
                         decoration: BoxDecoration(
                           border: Border.all(
                             width: 1,

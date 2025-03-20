@@ -81,6 +81,11 @@ class _DevicePageState extends State<DevicePage> {
           ),
         ],
       ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {},
+        tooltip: 'Increment',
+        child: const Icon(Icons.add),
+      ),
     );
   }
 }

@@ -4,6 +4,7 @@ import 'package:hmes/pages/login.dart';
 import 'package:hmes/components/components.dart';
 import 'package:hmes/pages/profile.dart';
 import 'package:hmes/pages/register.dart';
+import 'package:hmes/helper/secureStorageHelper.dart';
 
 class HomePage extends StatefulWidget {
   static String id = 'home_screen';
@@ -21,10 +22,30 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+  bool _isLoggedIn = false; // Thêm biến này để quản lý trạng thái đăng nhập
+
+  @override
+  void initState() {
+    super.initState();
+    _isLoggedIn = widget.isLoggedIn;
+    _checkLoginStatus();
+  }
+
+  void _checkLoginStatus() async {
+    String token = (await getToken()).toString();
+    String refreshToken = (await getRefreshToken()).toString();
+    String deviceId = (await getDeviceId()).toString();
+    bool isLoggedIn =
+        token.isNotEmpty && refreshToken.isNotEmpty && deviceId.isNotEmpty;
+
+    setState(() {
+      _isLoggedIn = isLoggedIn;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    if (!widget.isLoggedIn) {
-      // Sử dụng widget.isLoggedIn thay vì HomePage.isLoggedIn
+    if (!_isLoggedIn) {
       return Scaffold(
         backgroundColor: Colors.white,
         body: SafeArea(
@@ -57,8 +78,14 @@ class _HomePageState extends State<HomePage> {
                             tag: 'login_btn',
                             child: CustomButton(
                               buttonText: 'Đăng nhập',
-                              onPressed: () {
-                                Navigator.pushNamed(context, LoginPage.id);
+                              onPressed: () async {
+                                final result = await Navigator.pushNamed(
+                                  context,
+                                  LoginPage.id,
+                                );
+                                if (result == true) {
+                                  _checkLoginStatus(); // Kiểm tra lại trạng thái khi quay lại
+                                }
                               },
                             ),
                           ),
@@ -68,8 +95,14 @@ class _HomePageState extends State<HomePage> {
                             child: CustomButton(
                               buttonText: 'Đăng ký',
                               isOutlined: true,
-                              onPressed: () {
-                                Navigator.pushNamed(context, SignUpPage.id);
+                              onPressed: () async {
+                                final result = await Navigator.pushNamed(
+                                  context,
+                                  SignUpPage.id,
+                                );
+                                if (result == true) {
+                                  _checkLoginStatus(); // Kiểm tra lại trạng thái khi quay lại
+                                }
                               },
                             ),
                           ),

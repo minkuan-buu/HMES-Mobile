@@ -9,7 +9,7 @@ class CustomButton extends StatelessWidget {
     required this.buttonText,
     this.isOutlined = false,
     required this.onPressed,
-    this.width = 280,
+    this.width = 320,
   });
 
   final String buttonText;
@@ -30,8 +30,8 @@ class CustomButton extends StatelessWidget {
           width: width,
           padding: const EdgeInsets.all(13),
           decoration: BoxDecoration(
-            color: isOutlined ? Colors.white : kTextColor,
-            border: Border.all(color: kTextColor, width: 2.5),
+            color: isOutlined ? Colors.white : Color(0xFF9F7BFF),
+            border: Border.all(color: Color(0xFF9F7BFF), width: 2.5),
             borderRadius: BorderRadius.circular(30),
           ),
           child: Center(
@@ -40,7 +40,7 @@ class CustomButton extends StatelessWidget {
               style: TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 20,
-                color: isOutlined ? kTextColor : Colors.white,
+                color: isOutlined ? Color(0xFF9F7BFF) : Colors.white,
               ),
             ),
           ),
