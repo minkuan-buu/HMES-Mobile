@@ -12,7 +12,6 @@ import 'package:hmes/helper/sharedPreferencesHelper.dart';
 import 'package:hmes/pages/home.dart';
 import 'package:hmes/pages/login.dart';
 import 'package:loading_overlay/loading_overlay.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 
 class ResetPasswordPage extends StatefulWidget {
@@ -30,6 +29,9 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
 
   @override
   Widget build(BuildContext context) {
+    double screenWidth = MediaQuery.of(context).size.width;
+    double screenHeight = MediaQuery.of(context).size.height;
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: LoadingOverlay(
@@ -72,15 +74,15 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
                         'Nhập email của bạn để nhận mã xác nhận',
                         style: TextStyle(
                           color: Color(0xFF837E93),
-                          fontSize: 11,
+                          fontSize: 14,
                           // fontFamily: 'Poppins',
                           fontWeight: FontWeight.w400,
                         ),
                       ),
                       const SizedBox(height: 16),
                       Container(
-                        width: 329,
-                        height: 56,
+                        width: screenWidth * 0.85,
+                        height: screenHeight * 0.06,
                         decoration: BoxDecoration(
                           border: Border.all(
                             width: 1,
@@ -107,8 +109,8 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
                           Radius.circular(10),
                         ),
                         child: SizedBox(
-                          width: 329,
-                          height: 56,
+                          width: screenWidth * 0.85,
+                          height: screenHeight * 0.06,
                           child: ElevatedButton(
                             onPressed: () async {
                               setState(() {

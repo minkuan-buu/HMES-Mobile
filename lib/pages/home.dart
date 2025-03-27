@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:hmes/pages/device.dart';
 import 'package:hmes/pages/login.dart';
 import 'package:hmes/components/components.dart';
 import 'package:hmes/pages/profile.dart';
 import 'package:hmes/pages/register.dart';
+import 'package:hmes/helper/secureStorageHelper.dart';
 
 class HomePage extends StatefulWidget {
   static String id = 'home_screen';
@@ -21,10 +23,32 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+  bool _isLoggedIn = false;
+  DateTime? _lastPressed; // Biến lưu thời điểm bấm nút Back lần trước
+
+  @override
+  void initState() {
+    super.initState();
+    _isLoggedIn = widget.isLoggedIn;
+    _lastPressed = null; // Reset khi thoát ứng dụng
+    _checkLoginStatus();
+  }
+
+  void _checkLoginStatus() async {
+    String token = (await getToken()).toString();
+    String refreshToken = (await getRefreshToken()).toString();
+    String deviceId = (await getDeviceId()).toString();
+    bool isLoggedIn =
+        token.isNotEmpty && refreshToken.isNotEmpty && deviceId.isNotEmpty;
+
+    setState(() {
+      _isLoggedIn = isLoggedIn;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    if (!widget.isLoggedIn) {
-      // Sử dụng widget.isLoggedIn thay vì HomePage.isLoggedIn
+    if (!_isLoggedIn) {
       return Scaffold(
         backgroundColor: Colors.white,
         body: SafeArea(
@@ -57,8 +81,14 @@ class _HomePageState extends State<HomePage> {
                             tag: 'login_btn',
                             child: CustomButton(
                               buttonText: 'Đăng nhập',
-                              onPressed: () {
-                                Navigator.pushNamed(context, LoginPage.id);
+                              onPressed: () async {
+                                final result = await Navigator.pushNamed(
+                                  context,
+                                  LoginPage.id,
+                                );
+                                if (result == true) {
+                                  _checkLoginStatus();
+                                }
                               },
                             ),
                           ),
@@ -68,8 +98,14 @@ class _HomePageState extends State<HomePage> {
                             child: CustomButton(
                               buttonText: 'Đăng ký',
                               isOutlined: true,
-                              onPressed: () {
-                                Navigator.pushNamed(context, SignUpPage.id);
+                              onPressed: () async {
+                                final result = await Navigator.pushNamed(
+                                  context,
+                                  SignUpPage.id,
+                                );
+                                if (result == true) {
+                                  _checkLoginStatus();
+                                }
                               },
                             ),
                           ),
@@ -84,7 +120,25 @@ class _HomePageState extends State<HomePage> {
         ),
       );
     } else {
-      return BottomNavigationBarExample(controller: widget.controller);
+      return WillPopScope(
+        onWillPop: () async {
+          DateTime now = DateTime.now();
+          if (_lastPressed == null ||
+              now.difference(_lastPressed!) > Duration(seconds: 2)) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text("Nhấn lần nữa để thoát ứng dụng")),
+            );
+            setState(() {
+              _lastPressed = now;
+            });
+            return false;
+          }
+
+          SystemNavigator.pop();
+          return true;
+        },
+        child: BottomNavigationBarExample(controller: widget.controller),
+      );
     }
   }
 }

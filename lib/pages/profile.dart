@@ -26,8 +26,8 @@ class _ProfilePageState extends State<ProfilePage> {
   void initState() {
     super.initState();
     pages = [
-      const InfomationPage(),
-      const ChangePassword(),
+      InfomationPage(controller: widget.controller),
+      ChangePassword(controller: widget.controller),
       Logout(controller: widget.controller),
     ];
   }
@@ -40,7 +40,7 @@ class _ProfilePageState extends State<ProfilePage> {
     });
 
     // Hiển thị hiệu ứng trước khi chuyển trang
-    Future.delayed(const Duration(milliseconds: 300), () {
+    Future.delayed(const Duration(milliseconds: 100), () {
       if (mounted) {
         Navigator.push(
           context,
