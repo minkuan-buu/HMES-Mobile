@@ -157,7 +157,7 @@ class _InfomationPageState extends State<InfomationPage> {
       },
     );
 
-    String? newAccessToken = response.headers['New-Access-Token'];
+    String? newAccessToken = response.headers['new-access-token'];
 
     if (newAccessToken != null) {
       await updateToken(newAccessToken);

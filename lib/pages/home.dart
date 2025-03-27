@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:hmes/pages/device.dart';
 import 'package:hmes/pages/login.dart';
 import 'package:hmes/components/components.dart';
@@ -22,12 +23,14 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  bool _isLoggedIn = false; // Thêm biến này để quản lý trạng thái đăng nhập
+  bool _isLoggedIn = false;
+  DateTime? _lastPressed; // Biến lưu thời điểm bấm nút Back lần trước
 
   @override
   void initState() {
     super.initState();
     _isLoggedIn = widget.isLoggedIn;
+    _lastPressed = null; // Reset khi thoát ứng dụng
     _checkLoginStatus();
   }
 
@@ -84,7 +87,7 @@ class _HomePageState extends State<HomePage> {
                                   LoginPage.id,
                                 );
                                 if (result == true) {
-                                  _checkLoginStatus(); // Kiểm tra lại trạng thái khi quay lại
+                                  _checkLoginStatus();
                                 }
                               },
                             ),
@@ -101,7 +104,7 @@ class _HomePageState extends State<HomePage> {
                                   SignUpPage.id,
                                 );
                                 if (result == true) {
-                                  _checkLoginStatus(); // Kiểm tra lại trạng thái khi quay lại
+                                  _checkLoginStatus();
                                 }
                               },
                             ),
@@ -117,7 +120,25 @@ class _HomePageState extends State<HomePage> {
         ),
       );
     } else {
-      return BottomNavigationBarExample(controller: widget.controller);
+      return WillPopScope(
+        onWillPop: () async {
+          DateTime now = DateTime.now();
+          if (_lastPressed == null ||
+              now.difference(_lastPressed!) > Duration(seconds: 2)) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text("Nhấn lần nữa để thoát ứng dụng")),
+            );
+            setState(() {
+              _lastPressed = now;
+            });
+            return false;
+          }
+
+          SystemNavigator.pop();
+          return true;
+        },
+        child: BottomNavigationBarExample(controller: widget.controller),
+      );
     }
   }
 }

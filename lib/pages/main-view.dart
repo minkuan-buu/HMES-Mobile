@@ -1,11 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:hmes/helper/logout.dart';
-import 'package:hmes/pages/change-password.dart';
-import 'package:hmes/pages/device.dart';
 import 'package:hmes/pages/home.dart';
-import 'package:hmes/pages/information.dart';
 import 'package:hmes/pages/login.dart';
-import 'package:hmes/pages/profile.dart';
 import 'package:hmes/pages/reset-password.dart';
 
 class MainView extends StatefulWidget {
