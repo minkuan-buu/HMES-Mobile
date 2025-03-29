@@ -43,7 +43,7 @@ class DeviceModel {
     return DeviceModel(
       id: json['id'],
       name: json['name'],
-      description: json['description'],
+      description: json['description'] ?? '',
       attachment: json['attachment'] ?? '',
       isActive: json['isActive'],
       isOnline: json['isOnline'],

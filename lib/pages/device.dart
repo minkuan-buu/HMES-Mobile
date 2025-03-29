@@ -6,6 +6,7 @@ import 'package:hmes/context/baseAPI_URL.dart';
 import 'package:hmes/helper/logout.dart';
 import 'package:hmes/helper/secureStorageHelper.dart';
 import 'package:hmes/models/device.dart';
+import 'package:hmes/pages/connect-device.dart';
 import 'package:http/http.dart' as http;
 
 class DevicePage extends StatefulWidget {
@@ -116,7 +117,12 @@ class _DevicePageState extends State<DevicePage> {
         ],
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () {},
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => TutorialConnectScreen()),
+          );
+        },
         tooltip: 'Increment',
         child: const Icon(Icons.add),
       ),

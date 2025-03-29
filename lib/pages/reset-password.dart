@@ -143,7 +143,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
                               backgroundColor: const Color(0xFF9F7BFF),
                             ),
                             child: const Text(
-                              'Send',
+                              'Tiếp tục',
                               style: TextStyle(
                                 color: Colors.white,
                                 fontSize: 15,
