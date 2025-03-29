@@ -323,21 +323,34 @@ class _InputWifiPasswordState extends State<InputWifiPassword> {
     final response = await http.post(
       Uri.parse('${kitUrl}connect'),
       headers: <String, String>{
-        'Content-Type': 'application/json; charset=UTF-8',
+        'Content-Type': 'application/x-www-form-urlencoded',
       },
-      body: jsonEncode(<String, String>{'ssid': ssid, 'password': password}),
+      body: 'ssid=$ssid&password=$password', // Gửi dạng key-value
     );
 
     if (response.statusCode == 200) {
-      // Kết nối thành công
-      Navigator.pushNamedAndRemoveUntil(
-        context,
-        HomePage.id,
-        (route) => false, // Xóa tất cả màn hình trước đó
-      );
+      // ✅ Kết nối thành công
+      Navigator.pushNamedAndRemoveUntil(context, HomePage.id, (route) => false);
     } else {
-      // Kết nối thất bại
-      print('Failed to connect to WiFi');
+      // ❌ Kết nối thất bại
+      showDialog(
+        context: context,
+        builder:
+            (context) => AlertDialog(
+              title: const Text('Lỗi kết nối'),
+              content: const Text(
+                'Không thể kết nối đến WiFi. Hãy kiểm tra lại mật khẩu và thử lại.',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(context); // Đóng dialog
+                  },
+                  child: const Text('OK'),
+                ),
+              ],
+            ),
+      );
     }
   }
 }
