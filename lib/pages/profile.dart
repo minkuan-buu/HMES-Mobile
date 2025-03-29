@@ -26,8 +26,8 @@ class _ProfilePageState extends State<ProfilePage> {
   void initState() {
     super.initState();
     pages = [
-      const InfomationPage(),
-      const ChangePassword(),
+      InfomationPage(controller: widget.controller),
+      ChangePassword(controller: widget.controller),
       Logout(controller: widget.controller),
     ];
   }
@@ -40,7 +40,7 @@ class _ProfilePageState extends State<ProfilePage> {
     });
 
     // Hiển thị hiệu ứng trước khi chuyển trang
-    Future.delayed(const Duration(milliseconds: 300), () {
+    Future.delayed(const Duration(milliseconds: 100), () {
       if (mounted) {
         Navigator.push(
           context,
@@ -61,7 +61,7 @@ class _ProfilePageState extends State<ProfilePage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            padding: EdgeInsets.only(top: 35, left: 20, right: 20, bottom: 20),
+            padding: EdgeInsets.only(top: 40, left: 20, right: 20, bottom: 20),
             decoration: const BoxDecoration(
               color: Colors.blue,
               borderRadius: BorderRadius.only(

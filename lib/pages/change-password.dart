@@ -2,15 +2,16 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:hmes/components/components.dart';
-import 'package:hmes/constants.dart';
 import 'package:hmes/context/baseAPI_URL.dart';
+import 'package:hmes/helper/logout.dart';
 import 'package:loading_overlay/loading_overlay.dart';
 import 'package:hmes/helper/secureStorageHelper.dart';
 import 'package:http/http.dart' as http;
 import 'package:fluttertoast/fluttertoast.dart';
 
 class ChangePassword extends StatefulWidget {
-  const ChangePassword({super.key});
+  const ChangePassword({super.key, required this.controller});
+  final PageController controller;
 
   @override
   State<ChangePassword> createState() => _ChangePasswordState();
@@ -25,6 +26,9 @@ class _ChangePasswordState extends State<ChangePassword> {
 
   @override
   Widget build(BuildContext context) {
+    double screenWidth = MediaQuery.of(context).size.width;
+    double screenHeight = MediaQuery.of(context).size.height;
+
     return Scaffold(
       appBar: AppBar(title: const Text('Thay đổi mật khẩu')),
       body: LoadingOverlay(
@@ -42,55 +46,80 @@ class _ChangePasswordState extends State<ChangePassword> {
                     children: [
                       SizedBox(height: 20),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        width: screenWidth * 0.85,
+                        height: screenHeight * 0.06,
                         decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(width: 2.5, color: kTextColor),
+                          border: Border.all(
+                            width: 1,
+                            color: const Color(0xFF9F7BFF),
+                          ),
+                          borderRadius: const BorderRadius.all(
+                            Radius.circular(10),
+                          ),
                         ),
-                        child: TextField(
-                          obscureText: true,
-                          onChanged: (value) {
-                            _oldPassword = value;
-                          },
-                          style: const TextStyle(fontSize: 20),
-                          decoration: kTextInputDecoration.copyWith(
-                            label: Text('Mật khẩu cũ'),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          child: TextField(
+                            obscureText: true,
+                            onChanged: (value) => {_oldPassword = value},
+                            decoration: const InputDecoration(
+                              border: InputBorder.none,
+                              label: Text('Mật khẩu mới'),
+                            ),
                           ),
                         ),
                       ),
                       SizedBox(height: 20),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        width: screenWidth * 0.85,
+                        height: screenHeight * 0.06,
                         decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(width: 2.5, color: kTextColor),
+                          border: Border.all(
+                            width: 1,
+                            color: const Color(0xFF9F7BFF),
+                          ),
+                          borderRadius: const BorderRadius.all(
+                            Radius.circular(10),
+                          ),
                         ),
-                        child: TextField(
-                          obscureText: true,
-                          onChanged: (value) {
-                            _newPassword = value;
-                          },
-                          style: const TextStyle(fontSize: 20),
-                          decoration: kTextInputDecoration.copyWith(
-                            label: Text('Mật khẩu mới'),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          child: TextField(
+                            obscureText: true,
+                            onChanged: (value) {
+                              _newPassword = value;
+                            },
+                            decoration: const InputDecoration(
+                              border: InputBorder.none,
+                              label: Text('Mật khẩu mới'),
+                            ),
                           ),
                         ),
                       ),
                       SizedBox(height: 20),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        width: screenWidth * 0.85,
+                        height: screenHeight * 0.06,
                         decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(width: 2.5, color: kTextColor),
+                          border: Border.all(
+                            width: 1,
+                            color: const Color(0xFF9F7BFF),
+                          ),
+                          borderRadius: const BorderRadius.all(
+                            Radius.circular(10),
+                          ),
                         ),
-                        child: TextField(
-                          obscureText: true,
-                          onChanged: (value) {
-                            _confirmPassword = value;
-                          },
-                          style: const TextStyle(fontSize: 20),
-                          decoration: kTextInputDecoration.copyWith(
-                            label: Text('Nhập lại mật khẩu mới'),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          child: TextField(
+                            obscureText: true,
+                            onChanged: (value) {
+                              _confirmPassword = value;
+                            },
+                            decoration: const InputDecoration(
+                              border: InputBorder.none,
+                              label: Text('Nhập lại mật khẩu mới'),
+                            ),
                           ),
                         ),
                       ),
@@ -187,6 +216,13 @@ class _ChangePasswordState extends State<ChangePassword> {
         timeInSecForIosWeb: 1,
         textColor: Colors.black,
         fontSize: 16.0,
+      );
+    } else if (response.statusCode == 401) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => Logout(controller: widget.controller),
+        ),
       );
     } else {
       Map<String, dynamic> responseJson = jsonDecode(response.body);

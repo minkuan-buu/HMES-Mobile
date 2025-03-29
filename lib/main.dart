@@ -39,6 +39,9 @@ class MyApp extends StatelessWidget {
         controller: controller,
       ), // ✅ Truyền trực tiếp vào HomePage
       routes: {
+        HomePage.id:
+            (context) =>
+                HomePage(isLoggedIn: isLoggedIn, controller: controller),
         LoginPage.id: (context) => LoginPage(controller: controller),
         SignUpPage.id: (context) => SignUpPage(),
       },
