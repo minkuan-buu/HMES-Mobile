@@ -73,16 +73,30 @@ class _DevicePageState extends State<DevicePage> {
                         return Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              device.getName(),
-                              style: const TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                              ),
+                            Row(
+                              children: [
+                                device.getIsOnline()
+                                    ? const Icon(
+                                      Icons.circle,
+                                      color: Colors.green,
+                                    )
+                                    : const Icon(
+                                      Icons.circle,
+                                      color: Colors.red,
+                                    ),
+                                const SizedBox(width: 10),
+                                Text(
+                                  device.getName(),
+                                  style: const TextStyle(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
                             ),
                             const SizedBox(height: 10),
                             Text(
-                              'Device ID: ${device.getId()}',
+                              'Device ID: ${device.getId().split('-')[0]}',
                               style: const TextStyle(
                                 fontSize: 15,
                                 color: Colors.grey,
@@ -134,7 +148,7 @@ class _DevicePageState extends State<DevicePage> {
     String refreshToken = (await getRefreshToken()).toString();
     String deviceId = (await getDeviceId()).toString();
     final response = await http.get(
-      Uri.parse('${apiUrl}device/deviceitem'),
+      Uri.parse('${apiUrl}user/me/devices'),
       headers: <String, String>{
         'Content-Type': 'application/json; charset=UTF-8',
         'Cookie': 'DeviceId=$deviceId; RefreshToken=$refreshToken',
@@ -150,9 +164,8 @@ class _DevicePageState extends State<DevicePage> {
 
     if (response.statusCode == 200) {
       Map<String, dynamic> responseJson = jsonDecode(response.body);
-      Map<String, dynamic> data = responseJson['response']?['data'];
-      _device =
-          (data as List).map((item) => DeviceModel.fromJson(item)).toList();
+      List<dynamic> dataList = responseJson['response']?['data'] ?? [];
+      _device = dataList.map((item) => DeviceModel.fromJson(item)).toList();
       setState(() {
         _isLoading = false;
       });

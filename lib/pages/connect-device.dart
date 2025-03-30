@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:hmes/components/components.dart';
 import 'package:hmes/context/baseAPI_URL.dart';
+import 'package:hmes/helper/secureStorageHelper.dart';
 import 'package:hmes/models/wifi.dart';
 import 'package:hmes/pages/home.dart';
 import 'package:http/http.dart' as http;
@@ -183,6 +184,7 @@ class _WifiConnectionState extends State<WifiConnection> {
                       title: Text(wifiList[index].getSsid()),
                       trailing: getWiFiIcon(wifiList[index].getRssi()),
                       onTap: () {
+                        _timer.cancel();
                         Navigator.push(
                           context,
                           MaterialPageRoute(
@@ -320,15 +322,24 @@ class _InputWifiPasswordState extends State<InputWifiPassword> {
   }
 
   Future<void> _connectToWifi(String ssid, String password) async {
+    String token = (await getToken()).toString();
+    String refreshToken = Uri.encodeComponent(
+      await getRefreshToken() ?? '',
+    ); // 🔹 Decode trước khi gửi
+    String deviceId = (await getDeviceId()).toString();
+
     final response = await http.post(
       Uri.parse('${kitUrl}connect'),
       headers: <String, String>{
         'Content-Type': 'application/x-www-form-urlencoded',
       },
-      body: 'ssid=$ssid&password=$password', // Gửi dạng key-value
+      body:
+          'ssid=$ssid&password=$password&token=$token&deviceId=$deviceId&refreshToken=$refreshToken',
     );
 
     if (response.statusCode == 200) {
+      Map<String, dynamic> responseJson = jsonDecode(response.body);
+      Map<String, dynamic> token = responseJson['response']?['data'] ?? [];
       // ✅ Kết nối thành công
       Navigator.pushNamedAndRemoveUntil(context, HomePage.id, (route) => false);
     } else {
