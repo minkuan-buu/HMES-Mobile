@@ -50,3 +50,114 @@ class DeviceModel {
     );
   }
 }
+
+class DeviceItemModel {
+  String deviceItemId;
+  String deviceItemName;
+  String type;
+  String plantName;
+  bool isOnline;
+  String serial;
+  IoTResModel? ioTData;
+  DateTime? warrantyExpiryDate;
+  DateTime? lastUpdatedDate;
+
+  DeviceItemModel({
+    required this.deviceItemId,
+    required this.deviceItemName,
+    required this.type,
+    required this.plantName,
+    required this.serial,
+    required this.isOnline,
+  });
+
+  String getDeviceItemId() {
+    return deviceItemId;
+  }
+
+  String getDeviceItemName() {
+    return deviceItemName;
+  }
+
+  String getType() {
+    return type;
+  }
+
+  String getPlantName() {
+    return plantName;
+  }
+
+  String getSerial() {
+    return serial;
+  }
+
+  bool getIsOnline() {
+    return isOnline;
+  }
+
+  IoTResModel? getIoTData() {
+    return ioTData;
+  }
+
+  DateTime? getWarrantyExpiryDate() {
+    return warrantyExpiryDate;
+  }
+
+  DateTime? getLastUpdatedDate() {
+    return lastUpdatedDate;
+  }
+
+  void setIoTData(IoTResModel data) {
+    ioTData = data;
+  }
+
+  factory DeviceItemModel.fromJson(Map<String, dynamic> json) {
+    return DeviceItemModel(
+      deviceItemId: json['deviceItemId'],
+      deviceItemName: json['deviceItemName'],
+      type: json['type'],
+      plantName: json['plantName'],
+      serial: json['serial'],
+      isOnline: json['isOnline'],
+    );
+  }
+}
+
+class IoTResModel {
+  double soluteConcentration;
+  double temperature;
+  double ph;
+  double waterLevel;
+
+  IoTResModel({
+    required this.soluteConcentration,
+    required this.temperature,
+    required this.ph,
+    required this.waterLevel,
+  });
+
+  double getSoluteConcentration() {
+    return soluteConcentration;
+  }
+
+  double getTemperature() {
+    return temperature;
+  }
+
+  double getPh() {
+    return ph;
+  }
+
+  double getWaterLevel() {
+    return waterLevel;
+  }
+
+  factory IoTResModel.fromJson(Map<String, dynamic> json) {
+    return IoTResModel(
+      soluteConcentration: json['soluteConcentration']?.toDouble() ?? 0,
+      temperature: json['temperature']?.toDouble() ?? 0,
+      ph: json['ph']?.toDouble() ?? 0.0,
+      waterLevel: json['waterLevel']?.toDouble() ?? 0,
+    );
+  }
+}
