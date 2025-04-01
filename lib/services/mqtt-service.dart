@@ -1,3 +1,4 @@
+import 'package:hmes/helper/secureStorageHelper.dart';
 import 'package:hmes/helper/sharedPreferencesHelper.dart';
 import 'package:mqtt_client/mqtt_client.dart';
 import 'package:mqtt_client/mqtt_server_client.dart';
@@ -6,7 +7,7 @@ import 'package:flutter/foundation.dart';
 class MqttService {
   final String broker = '14.225.210.123'; // Thay bằng MQTT broker của bạn
   final int port = 1883;
-  final String clientId = 'flutter_client';
+  String clientId = '';
 
   String? userId;
   MqttServerClient? _client;
@@ -16,8 +17,14 @@ class MqttService {
 
   Future<void> connect() async {
     userId = await getTempKey('userId');
+    clientId = (await getDeviceId()) ?? '';
+    // Client ID is guaranteed to be non-null, so this check is unnecessary.
+    if (clientId.isEmpty) {
+      debugPrint('Client ID is empty, cannot subscribe to MQTT.');
+      return;
+    }
     if (userId == null) {
-      debugPrint('User ID is null, cannot subscribe to MQTT.2');
+      debugPrint('User ID is null, cannot subscribe to MQTT.');
       return;
     }
 
@@ -42,10 +49,22 @@ class MqttService {
         _subscribeToTopic(topic);
       } else {
         debugPrint('MQTT Connection Failed');
+        _attemptReconnect();
       }
     } catch (e) {
       debugPrint('MQTT Connection Error: $e');
+      _attemptReconnect();
     }
+  }
+
+  void _attemptReconnect() {
+    Future.delayed(Duration(seconds: 5), () {
+      if (_client == null ||
+          _client!.connectionStatus!.state != MqttConnectionState.connected) {
+        debugPrint('Reconnecting to MQTT Broker...');
+        connect();
+      }
+    });
   }
 
   void _subscribeToTopic(String topic) {
@@ -73,5 +92,12 @@ class MqttService {
 
   void onDisconnected() {
     debugPrint('Disconnected from MQTT Broker');
+    Future.delayed(Duration(seconds: 5), () {
+      if (_client != null &&
+          _client!.connectionStatus!.state != MqttConnectionState.connected) {
+        debugPrint('Reconnecting to MQTT Broker...');
+        connect();
+      }
+    });
   }
 }
