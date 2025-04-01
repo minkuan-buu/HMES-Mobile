@@ -166,30 +166,25 @@ class _DevicePageState extends State<DevicePage> {
       Map<String, dynamic> responseJson = jsonDecode(response.body);
       List<dynamic> dataList = responseJson['response']?['data'] ?? [];
       _device = dataList.map((item) => DeviceModel.fromJson(item)).toList();
-      setState(() {
-        _isLoading = false;
-      });
+
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     } else if (response.statusCode == 401) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => Logout(controller: widget.controller),
-        ),
-      );
-    } else if (response.statusCode == 404) {
-      Map<String, dynamic> responseJson = jsonDecode(response.body);
-      _getDeviceStatus = responseJson['message'];
-      Fluttertoast.showToast(
-        msg: _getDeviceStatus,
-        toastLength: Toast.LENGTH_SHORT,
-        gravity: ToastGravity.BOTTOM,
-        timeInSecForIosWeb: 1,
-        textColor: Colors.black,
-        fontSize: 16.0,
-      );
+      if (mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => Logout(controller: widget.controller),
+          ),
+        );
+      }
     } else {
       Map<String, dynamic> responseJson = jsonDecode(response.body);
       _getDeviceStatus = responseJson['message'];
+
       Fluttertoast.showToast(
         msg: _getDeviceStatus,
         toastLength: Toast.LENGTH_SHORT,
@@ -198,7 +193,10 @@ class _DevicePageState extends State<DevicePage> {
         textColor: Colors.black,
         fontSize: 16.0,
       );
-      Navigator.pop(context);
+
+      if (mounted) {
+        Navigator.pop(context);
+      }
     }
   }
 }

@@ -43,6 +43,7 @@ dependencies:
   fluttertoast: ^8.2.12
   flutter_timer_countdown: ^1.0.7
   shared_preferences: ^2.2.2
+  mqtt_client: ^10.0.0
 
 dev_dependencies:
   flutter_test:
