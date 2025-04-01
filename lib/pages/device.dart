@@ -68,7 +68,9 @@ class _DevicePageState extends State<DevicePage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children:
-                  _device.isNotEmpty
+                  _isLoading
+                      ? [const Center(child: CircularProgressIndicator())]
+                      : _device.isNotEmpty
                       ? _device.map((device) {
                         return Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -143,10 +145,13 @@ class _DevicePageState extends State<DevicePage> {
     );
   }
 
-  Future _getDevices() async {
+  Future<void> _getDevices() async {
     String token = (await getToken()).toString();
     String refreshToken = (await getRefreshToken()).toString();
     String deviceId = (await getDeviceId()).toString();
+
+    if (!mounted) return; // Kiểm tra widget đã bị unmount hay chưa
+
     final response = await http.get(
       Uri.parse('${apiUrl}user/me/devices'),
       headers: <String, String>{
@@ -157,10 +162,11 @@ class _DevicePageState extends State<DevicePage> {
     );
 
     String? newAccessToken = response.headers['new-access-token'];
-
     if (newAccessToken != null) {
       await updateToken(newAccessToken);
     }
+
+    if (!mounted) return; // Kiểm tra lại widget trước khi setState
 
     if (response.statusCode == 200) {
       Map<String, dynamic> responseJson = jsonDecode(response.body);
@@ -174,28 +180,34 @@ class _DevicePageState extends State<DevicePage> {
       }
     } else if (response.statusCode == 401) {
       if (mounted) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => Logout(controller: widget.controller),
-          ),
-        );
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => Logout(controller: widget.controller),
+            ),
+          );
+        });
       }
     } else {
       Map<String, dynamic> responseJson = jsonDecode(response.body);
       _getDeviceStatus = responseJson['message'];
 
-      Fluttertoast.showToast(
-        msg: _getDeviceStatus,
-        toastLength: Toast.LENGTH_SHORT,
-        gravity: ToastGravity.BOTTOM,
-        timeInSecForIosWeb: 1,
-        textColor: Colors.black,
-        fontSize: 16.0,
-      );
-
       if (mounted) {
-        Navigator.pop(context);
+        Fluttertoast.showToast(
+          msg: _getDeviceStatus,
+          toastLength: Toast.LENGTH_SHORT,
+          gravity: ToastGravity.BOTTOM,
+          timeInSecForIosWeb: 1,
+          textColor: Colors.black,
+          fontSize: 16.0,
+        );
+
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            Navigator.pop(context);
+          }
+        });
       }
     }
   }

@@ -26,6 +26,7 @@ class _LogoutState extends State<Logout> {
     String token = (await getToken()).toString();
     String refreshToken = (await getRefreshToken()).toString();
     String deviceId = (await getDeviceId()).toString();
+
     final response = await http.post(
       Uri.parse('${apiUrl}auth/logout'),
       headers: <String, String>{
@@ -35,53 +36,47 @@ class _LogoutState extends State<Logout> {
       },
     );
 
+    await removeToken(); // Xóa token bất kể thành công hay thất bại
+
     if (response.statusCode == 200) {
       _logoutStatus = 'Đã đăng xuất khỏi thiết bị!';
-      await removeToken();
-      Fluttertoast.showToast(
-        msg: _logoutStatus,
-        toastLength: Toast.LENGTH_SHORT,
-        gravity: ToastGravity.BOTTOM,
-        timeInSecForIosWeb: 1,
-        textColor: Colors.black,
-        fontSize: 16.0,
-      );
     } else {
-      await removeToken();
-      // Map<String, dynamic> responseJson = jsonDecode(response.body);
       _logoutStatus = 'Phiên đăng nhập đã hết hạn!';
-      // switch (_logoutStatus) {
-      //   case "DeviceId cookie is missing.":
-      //     _logoutStatus = "Đã đăng xuất khỏi thiết bị!";
-      //     break;
-      //   default:
-      // }
-
-      Fluttertoast.showToast(
-        msg: _logoutStatus,
-        toastLength: Toast.LENGTH_SHORT,
-        gravity: ToastGravity.BOTTOM,
-        timeInSecForIosWeb: 1,
-        textColor: Colors.black,
-        fontSize: 16.0,
-      );
     }
-    setState(() {});
+
+    Fluttertoast.showToast(
+      msg: _logoutStatus,
+      toastLength: Toast.LENGTH_SHORT,
+      gravity: ToastGravity.BOTTOM,
+      timeInSecForIosWeb: 1,
+      textColor: Colors.black,
+      fontSize: 16.0,
+    );
+
+    if (mounted) {
+      setState(() {}); // Cập nhật UI nếu widget chưa bị dispose
+
+      // Chuyển hướng sau khi cập nhật UI
+      Future.microtask(() {
+        if (mounted) {
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(
+              builder:
+                  (context) => HomePage(
+                    isLoggedIn: false,
+                    controller: widget.controller,
+                  ),
+            ),
+            (Route<dynamic> route) => false,
+          );
+        }
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    // Chuyển đến trang đăng nhập
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder:
-              (context) =>
-                  HomePage(isLoggedIn: false, controller: widget.controller),
-        ),
-      );
-    });
-    return Scaffold(body: Center(child: CircularProgressIndicator()));
+    return const Scaffold(body: Center(child: CircularProgressIndicator()));
   }
 }
