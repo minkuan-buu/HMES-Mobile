@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:hmes/components/components.dart';
 import 'package:hmes/context/baseAPI_URL.dart';
 import 'package:hmes/helper/secureStorageHelper.dart';
+import 'package:hmes/helper/sharedPreferencesHelper.dart';
 import 'package:hmes/pages/reset-password.dart';
 import 'package:loading_overlay/loading_overlay.dart';
 import 'package:hmes/pages/home.dart';
@@ -237,10 +238,13 @@ class _LoginPageState extends State<LoginPage> {
         Map<String, dynamic> responseJson = jsonDecode(response.body);
 
         // Truy xuất token từ response
-        String? token = responseJson['auth']?['token'];
+        Map<String, dynamic> data = responseJson['response']?['data'];
+        String? token = data['auth']?['token'];
         if (token != null && refreshToken != null && deviceId != null) {
           saveToken(token, refreshToken, deviceId);
         }
+        Map<String, String> key = {'userId': data['id']};
+        await saveTempKey(key);
       } else {
         print('Không tìm thấy cookie.');
       }

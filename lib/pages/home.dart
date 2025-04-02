@@ -6,6 +6,7 @@ import 'package:hmes/components/components.dart';
 import 'package:hmes/pages/profile.dart';
 import 'package:hmes/pages/register.dart';
 import 'package:hmes/helper/secureStorageHelper.dart';
+import 'package:hmes/services/mqtt-service.dart';
 
 class HomePage extends StatefulWidget {
   static String id = 'home_screen';
@@ -156,13 +157,36 @@ class BottomNavigationBarExample extends StatefulWidget {
 class _BottomNavigationBarExampleState
     extends State<BottomNavigationBarExample> {
   int _selectedIndex = 0;
+  bool hasNewNotification = false; // Trạng thái thông báo mới
   final PageController _pageController = PageController();
+  late MqttService mqttService; // Khai báo mqttService theo kiểu instance
+  String message = 'Chưa nhận thông báo';
+
+  @override
+  void initState() {
+    super.initState();
+    mqttService = MqttService(); // Sử dụng singleton MqttService
+    mqttService.onNewNotification = (message) => onNewNotification(message);
+    mqttService.connect(); // Kết nối MQTT
+  }
 
   void _changeIndex(int index) {
     setState(() {
       _selectedIndex = index;
-      _pageController.jumpToPage(index); // Chuyển trang ngay lập tức
+      if (index == 1) {
+        hasNewNotification = false; // Xóa chấm khi mở trang thông báo
+      }
+      _pageController.jumpToPage(index);
     });
+  }
+
+  // Hàm cập nhật khi có thông báo mới
+  void onNewNotification(String message) {
+    setState(() {
+      this.message = message; // Cập nhật thông báo mới
+      hasNewNotification = true; // Đánh dấu có thông báo mới
+    });
+    debugPrint('Nhận thông báo mới: $message');
   }
 
   @override
@@ -170,23 +194,46 @@ class _BottomNavigationBarExampleState
     return Scaffold(
       body: PageView(
         controller: _pageController,
-        physics: NeverScrollableScrollPhysics(), // Ngăn vuốt ngang
+        physics: NeverScrollableScrollPhysics(),
         children: [
-          DevicePage(controller: widget.controller), // Trang Thiết bị
+          DevicePage(controller: widget.controller),
           Text("Thông báo", style: TextStyle(fontSize: 20)),
-          ProfilePage(controller: widget.controller), // Trang Tài khoản
+          ProfilePage(controller: widget.controller),
         ],
       ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
         onTap: _changeIndex,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.devices), label: "Thiết bị"),
+        items: [
+          const BottomNavigationBarItem(
+            icon: Icon(Icons.devices),
+            label: "Thiết bị",
+          ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.notifications),
+            icon: Stack(
+              children: [
+                const Icon(Icons.notifications),
+                if (hasNewNotification) // Hiển thị chấm đỏ nếu có thông báo
+                  Positioned(
+                    right: 0,
+                    top: 0,
+                    child: Container(
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
             label: "Thông báo",
           ),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: "Tài khoản"),
+          const BottomNavigationBarItem(
+            icon: Icon(Icons.person),
+            label: "Tài khoản",
+          ),
         ],
       ),
     );
