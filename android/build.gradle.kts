@@ -19,3 +19,7 @@ subprojects {
 tasks.register<Delete>("clean") {
     delete(rootProject.layout.buildDirectory)
 }
+
+tasks.withType<JavaCompile> { // Corrected line
+    options.compilerArgs.add("-Xlint:-options") // Corrected line
+}

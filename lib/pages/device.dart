@@ -7,6 +7,8 @@ import 'package:hmes/helper/logout.dart';
 import 'package:hmes/helper/secureStorageHelper.dart';
 import 'package:hmes/models/device.dart';
 import 'package:hmes/pages/connect-device.dart';
+import 'package:hmes/services/mqtt-service.dart';
+import 'package:intl/intl.dart';
 import 'package:http/http.dart' as http;
 
 class DevicePage extends StatefulWidget {
@@ -226,12 +228,15 @@ class _DevicePageState extends State<DevicePage> {
           textColor: Colors.black,
           fontSize: 16.0,
         );
-
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) {
-            Navigator.pop(context);
-          }
+        setState(() {
+          _isLoading = false;
         });
+
+        // WidgetsBinding.instance.addPostFrameCallback((_) {
+        //   if (mounted) {
+        //     Navigator.pop(context);
+        //   }
+        // });
       }
     }
   }
@@ -253,14 +258,30 @@ class DeviceDetailScreen extends StatefulWidget {
 }
 
 class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
+  bool _isButtonRefresh = true;
   bool _isLoading = true;
   String _getDeviceStatus = '';
+  bool hasNewData = false;
   DeviceItemModel? _deviceItem;
 
   @override
   void initState() {
     super.initState();
     _getDeviceDetails();
+  }
+
+  String formatDate(DateTime dateTime) {
+    return DateFormat('dd/MM/yyyy').format(dateTime);
+  }
+
+  String formatDateTime(DateTime dateTime) {
+    return DateFormat('HH:mm, dd/MM/yyyy').format(dateTime);
+  }
+
+  void onNewData() {
+    setState(() {
+      hasNewData = true;
+    });
   }
 
   @override
@@ -294,144 +315,488 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
                   _isLoading
                       ? const Center(child: CircularProgressIndicator())
                       : _deviceItem != null
-                      ? Container(
-                        margin: EdgeInsets.symmetric(
-                          horizontal: screenWidth * 0.04, // Thay vì 15
-                          vertical: screenHeight * 0.03, // Thay vì 40
-                        ),
-                        height:
-                            screenHeight *
-                            0.20, // Tự động thay đổi theo màn hình
-                        width: double.infinity,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(20),
-                          gradient: const LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [Colors.green, Colors.greenAccent],
-                          ),
-                        ),
-                        child: Column(
-                          children: [
-                            Padding(
-                              padding: EdgeInsets.only(
-                                top: screenHeight * 0.001, // Thay vì 10
-                                left: screenWidth * 0.06, // Thay vì 110
-                              ),
-                              child: Row(
-                                crossAxisAlignment:
-                                    CrossAxisAlignment
-                                        .baseline, // Căn theo đường baseline
-                                textBaseline:
-                                    TextBaseline
-                                        .alphabetic, // Đảm bảo căn chuẩn cho chữ
-                                children: [
-                                  Text(
-                                    _deviceItem?.ioTData?.soluteConcentration
-                                            .toString() ??
-                                        '',
-                                    style: TextStyle(
-                                      fontSize: screenWidth * 0.2,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                  SizedBox(width: 5), // Tạo khoảng cách
-                                  Text(
-                                    'ppm',
-                                    style: TextStyle(
-                                      fontSize: screenWidth * 0.07,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                ],
+                      ? Column(
+                        children: [
+                          Container(
+                            margin: EdgeInsets.symmetric(
+                              horizontal: screenWidth * 0.04, // Thay vì 15
+                              vertical: screenHeight * 0.03, // Thay vì 40
+                            ),
+                            height:
+                                screenHeight *
+                                0.25, // Tự động thay đổi theo màn hình
+                            width: double.infinity,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(20),
+                              gradient: const LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [Colors.green, Colors.greenAccent],
                               ),
                             ),
-                            SizedBox(height: screenHeight * 0.01), // Thay vì 50
-                            Row(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Padding(
                                   padding: EdgeInsets.only(
-                                    left: screenWidth * 0.05,
-                                  ), // Thay vì 20
+                                    top: screenHeight * 0.001, // Thay vì 10
+                                    left: screenWidth * 0.06, // Thay vì 110
+                                  ),
                                   child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment
+                                            .baseline, // Căn theo đường baseline
+                                    textBaseline:
+                                        TextBaseline
+                                            .alphabetic, // Đảm bảo căn chuẩn cho chữ
                                     children: [
-                                      Icon(
-                                        Icons.thermostat,
-                                        color: Colors.white,
-                                        size: screenWidth * 0.075,
-                                      ),
-                                      SizedBox(width: screenWidth * 0.02),
                                       Text(
-                                        _deviceItem?.ioTData?.temperature
+                                        _deviceItem
+                                                ?.ioTData
+                                                ?.soluteConcentration
                                                 .toString() ??
                                             '',
                                         style: TextStyle(
+                                          fontSize: screenWidth * 0.2,
+                                          fontWeight: FontWeight.bold,
                                           color: Colors.white,
+                                        ),
+                                      ),
+                                      SizedBox(width: 5), // Tạo khoảng cách
+                                      Text(
+                                        'ppm',
+                                        style: TextStyle(
                                           fontSize: screenWidth * 0.07,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.white,
                                         ),
                                       ),
                                     ],
                                   ),
                                 ),
+                                //SizedBox(height: screenHeight * 0.1), // Thay vì 50
                                 Padding(
                                   padding: EdgeInsets.only(
-                                    left: screenWidth * 0.05,
+                                    left: screenWidth * 0.06, // Thay vì 110
+                                    right: screenWidth * 0.06, // Thay vì 110
                                   ),
                                   child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.start,
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
                                     children: [
-                                      Image(
-                                        image: const AssetImage(
-                                          'assets/images/icons/ph.png',
-                                        ),
-                                        width: screenWidth * 0.06,
-                                        height: screenWidth * 0.06,
-                                        color: Colors.white,
+                                      Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.start,
+                                        children: [
+                                          Icon(
+                                            Icons.thermostat,
+                                            color: Colors.white,
+                                            size: screenWidth * 0.06,
+                                          ),
+                                          SizedBox(width: screenWidth * 0.02),
+                                          Text(
+                                            _deviceItem?.ioTData?.temperature
+                                                    .toString() ??
+                                                '',
+                                            style: TextStyle(
+                                              color: Colors.white,
+                                              fontSize: screenWidth * 0.055,
+                                            ),
+                                          ),
+                                        ],
                                       ),
-                                      SizedBox(width: screenWidth * 0.02),
-                                      Text(
-                                        _deviceItem?.ioTData?.ph.toString() ??
-                                            '',
-                                        style: TextStyle(
-                                          color: Colors.white,
-                                          fontSize: screenWidth * 0.07,
-                                        ),
+                                      Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.start,
+                                        children: [
+                                          Image(
+                                            image: const AssetImage(
+                                              'assets/images/icons/ph.png',
+                                            ),
+                                            width: screenWidth * 0.055,
+                                            height: screenWidth * 0.055,
+                                            color: Colors.white,
+                                          ),
+                                          SizedBox(width: screenWidth * 0.02),
+                                          Text(
+                                            _deviceItem?.ioTData?.ph
+                                                    .toString() ??
+                                                '',
+                                            style: TextStyle(
+                                              color: Colors.white,
+                                              fontSize: screenWidth * 0.055,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.start,
+                                        children: [
+                                          Icon(
+                                            Icons.water_drop,
+                                            color: Colors.white,
+                                            size: screenWidth * 0.06,
+                                          ),
+                                          SizedBox(width: screenWidth * 0.02),
+                                          Text(
+                                            _deviceItem?.ioTData?.waterLevel
+                                                    .toString() ??
+                                                '',
+                                            style: TextStyle(
+                                              color: Colors.white,
+                                              fontSize: screenWidth * 0.055,
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ],
                                   ),
                                 ),
+                                SizedBox(
+                                  height: screenHeight * 0.03,
+                                ), // Thay vì 10
                                 Padding(
                                   padding: EdgeInsets.only(
-                                    left: screenWidth * 0.05,
+                                    left: screenWidth * 0.06, // Thay vì 110
+                                    right: screenWidth * 0.06, // Thay vì 110
                                   ),
-                                  child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.start,
-                                    children: [
-                                      Icon(
-                                        Icons.water_drop,
-                                        color: Colors.white,
-                                        size: screenWidth * 0.075,
-                                      ),
-                                      SizedBox(width: screenWidth * 0.02),
-                                      Text(
-                                        _deviceItem?.ioTData?.waterLevel
-                                                .toString() ??
-                                            '',
-                                        style: TextStyle(
-                                          color: Colors.white,
-                                          fontSize: screenWidth * 0.07,
-                                        ),
-                                      ),
-                                    ],
+                                  child: Text(
+                                    'Cập nhật lần cuối: ${_deviceItem?.lastUpdatedDate != null ? formatDateTime(_deviceItem!.lastUpdatedDate!) : 'N/A'}',
+                                    textAlign: TextAlign.start,
+                                    style: TextStyle(
+                                      fontSize: screenWidth * 0.04,
+                                      color: Colors.white,
+                                      fontStyle: FontStyle.italic,
+                                    ),
                                   ),
                                 ),
                               ],
                             ),
-                          ],
-                        ),
+                          ),
+                          Container(
+                            margin: EdgeInsets.symmetric(
+                              horizontal: screenWidth * 0.04, // Thay vì 15
+                              vertical: screenHeight * 0.001, // Thay vì 40
+                            ),
+                            height:
+                                screenHeight *
+                                0.29, // Tự động thay đổi theo màn hình
+                            width: double.infinity,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(20),
+                              gradient: const LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [Colors.green, Colors.greenAccent],
+                              ),
+                            ),
+                            child: Padding(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: screenHeight * 0.02, // Thay vì 10
+                                vertical: screenWidth * 0.06, // Thay vì 110
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        Icons.info,
+                                        color: Colors.white,
+                                        size: screenWidth * 0.04,
+                                      ),
+                                      SizedBox(width: screenWidth * 0.02),
+                                      Expanded(
+                                        // Giúp Row con chiếm hết không gian có sẵn
+                                        child: Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            Text(
+                                              'Serial',
+                                              style: TextStyle(
+                                                fontSize: screenWidth * 0.045,
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.white,
+                                              ),
+                                            ),
+                                            Text(
+                                              _deviceItem?.serial ?? '',
+                                              style: TextStyle(
+                                                fontSize: screenWidth * 0.045,
+                                                color: Colors.white,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const Divider(
+                                    color: Color.fromARGB(255, 197, 197, 197),
+                                  ),
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        Icons.info,
+                                        color: Colors.white,
+                                        size: screenWidth * 0.04,
+                                      ),
+                                      SizedBox(width: screenWidth * 0.02),
+                                      Expanded(
+                                        // Giúp Row con chiếm hết không gian có sẵn
+                                        child: Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            Text(
+                                              'Loại thiết bị',
+                                              style: TextStyle(
+                                                fontSize: screenWidth * 0.045,
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.white,
+                                              ),
+                                            ),
+                                            Text(
+                                              _deviceItem?.type ?? '',
+                                              style: TextStyle(
+                                                fontSize: screenWidth * 0.045,
+                                                color: Colors.white,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const Divider(
+                                    color: Color.fromARGB(255, 197, 197, 197),
+                                  ),
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        Icons.info,
+                                        color: Colors.white,
+                                        size: screenWidth * 0.04,
+                                      ),
+                                      SizedBox(width: screenWidth * 0.02),
+                                      Expanded(
+                                        // Giúp Row con chiếm hết không gian có sẵn
+                                        child: Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            Text(
+                                              'Trực tuyến',
+                                              style: TextStyle(
+                                                fontSize: screenWidth * 0.045,
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.white,
+                                              ),
+                                            ),
+                                            Text(
+                                              (_deviceItem?.isOnline ?? false)
+                                                  ? 'Có'
+                                                  : 'Không',
+                                              style: TextStyle(
+                                                fontSize: screenWidth * 0.045,
+                                                color: Colors.white,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const Divider(
+                                    color: Color.fromARGB(255, 197, 197, 197),
+                                  ),
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        Icons.eco,
+                                        color: Colors.white,
+                                        size: screenWidth * 0.04,
+                                      ),
+                                      SizedBox(width: screenWidth * 0.02),
+                                      Expanded(
+                                        // Giúp Row con chiếm hết không gian có sẵn
+                                        child: Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            Text(
+                                              'Cây đang trồng',
+                                              style: TextStyle(
+                                                fontSize: screenWidth * 0.045,
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.white,
+                                              ),
+                                            ),
+                                            Text(
+                                              (_deviceItem
+                                                          ?.plantName
+                                                          ?.isEmpty ??
+                                                      true)
+                                                  ? 'Không có'
+                                                  : _deviceItem!.plantName,
+                                              style: TextStyle(
+                                                fontSize: screenWidth * 0.045,
+                                                color: Colors.white,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const Divider(
+                                    color: Color.fromARGB(255, 197, 197, 197),
+                                  ),
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        Icons.access_time,
+                                        color: Colors.white,
+                                        size: screenWidth * 0.04,
+                                      ),
+                                      SizedBox(width: screenWidth * 0.02),
+                                      Expanded(
+                                        // Giúp Row con chiếm hết không gian có sẵn
+                                        child: Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            Text(
+                                              'Bảo hành đến',
+                                              style: TextStyle(
+                                                fontSize: screenWidth * 0.045,
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.white,
+                                              ),
+                                            ),
+                                            Text(
+                                              _deviceItem?.warrantyExpiryDate !=
+                                                      null
+                                                  ? formatDate(
+                                                    _deviceItem!
+                                                        .warrantyExpiryDate!,
+                                                  )
+                                                  : 'N/A',
+                                              style: TextStyle(
+                                                fontSize: screenWidth * 0.045,
+                                                color: Colors.white,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  // const Divider(
+                                  //   color: Color.fromARGB(255, 197, 197, 197),
+                                  // ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          Container(
+                            margin: EdgeInsets.symmetric(
+                              horizontal: screenWidth * 0.04, // Thay vì 15
+                              vertical: screenHeight * 0.025,
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                SizedBox(
+                                  width: screenWidth * 0.45,
+                                  height: screenHeight * 0.055,
+                                  child: ElevatedButton(
+                                    onPressed: () async {},
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFF9F7BFF),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                    ),
+                                    child: Text(
+                                      'Chọn cây trồng',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                SizedBox(
+                                  width: screenWidth * 0.45,
+                                  height: screenHeight * 0.055,
+                                  child: ElevatedButton(
+                                    onPressed:
+                                        _isButtonRefresh
+                                            ? () async {
+                                              // Vô hiệu hóa nút khi nhấn
+                                              setState(() {
+                                                _isButtonRefresh = false;
+                                              });
+
+                                              final mqttService = MqttService();
+                                              mqttService.onNewNotification =
+                                                  (message) =>
+                                                      RefreshData(message);
+
+                                              mqttService.sendRefreshSignal(
+                                                _deviceItem?.deviceItemId
+                                                        .toUpperCase() ??
+                                                    '',
+                                              );
+                                            }
+                                            : null, // Nếu nút bị vô hiệu hóa, onPressed sẽ là null (không làm gì)
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFF9F7BFF),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                    ),
+                                    child:
+                                        _isButtonRefresh
+                                            ? Text(
+                                              'Cập nhật dữ liệu',
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 15,
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            )
+                                            : SizedBox(
+                                              width: screenWidth * 0.05,
+                                              height: screenWidth * 0.05,
+                                              child: CircularProgressIndicator(
+                                                color: Colors.white,
+                                                strokeWidth: 2,
+                                              ),
+                                            ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Container(
+                            margin: EdgeInsets.symmetric(
+                              horizontal: screenWidth * 0.04, // Thay vì 15
+                              vertical: screenHeight * 0.001,
+                            ),
+                            child: Text(
+                              '*Việc chọn cây trồng sẽ giúp chúng tôi đưa ra những cảnh báo chính xác hơn cho từng loại cây bạn trồng.',
+                              style: TextStyle(
+                                fontSize: screenWidth * 0.032,
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                          ),
+                        ],
                       )
                       : const Center(
                         child: Text(
@@ -448,6 +813,25 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
         ],
       ),
     );
+  }
+
+  void RefreshData(String message) {
+    // Sau khi hoàn thành việc xử lý dữ liệu, bật lại nút
+    setState(() {
+      _isButtonRefresh = true;
+    });
+    if (message == '') {
+      Fluttertoast.showToast(
+        msg: 'Không có dữ liệu mới',
+        toastLength: Toast.LENGTH_SHORT,
+        gravity: ToastGravity.BOTTOM,
+        timeInSecForIosWeb: 1,
+        textColor: Colors.black,
+        fontSize: 16.0,
+      );
+    }
+    // Thực hiện các thao tác khác với message nếu cần.
+    debugPrint("Dữ liệu đã được cập nhật: $message");
   }
 
   Future<void> _getDeviceDetails() async {

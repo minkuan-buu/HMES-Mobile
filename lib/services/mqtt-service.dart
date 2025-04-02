@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:hmes/helper/secureStorageHelper.dart';
 import 'package:hmes/helper/sharedPreferencesHelper.dart';
 import 'package:mqtt_client/mqtt_client.dart';
@@ -5,30 +8,37 @@ import 'package:mqtt_client/mqtt_server_client.dart';
 import 'package:flutter/foundation.dart';
 
 class MqttService {
-  final String broker = '14.225.210.123'; // Thay bằng MQTT broker của bạn
+  static final MqttService _instance = MqttService._internal();
+  factory MqttService() => _instance;
+
+  final String broker = '14.225.210.123'; // MQTT broker address
   final int port = 1883;
   String clientId = '';
-
   String? userId;
   MqttServerClient? _client;
-  Function()? onNewNotification;
+  Function(String message)? onNewNotification; // Callback for new notifications
 
-  MqttService({this.onNewNotification});
+  // Refresh management variables
+  bool _isRefreshing = false;
+  StreamSubscription? _notificationSubscription;
+  StreamSubscription? _refreshSubscription;
 
+  // Private constructor to ensure a single instance
+  MqttService._internal();
+
+  // Connect to MQTT broker
   Future<void> connect() async {
     userId = await getTempKey('userId');
     clientId = (await getDeviceId()) ?? '';
-    // Client ID is guaranteed to be non-null, so this check is unnecessary.
-    if (clientId.isEmpty) {
-      debugPrint('Client ID is empty, cannot subscribe to MQTT.');
-      return;
-    }
-    if (userId == null) {
-      debugPrint('User ID is null, cannot subscribe to MQTT.');
+
+    if (clientId.isEmpty || userId == null) {
+      debugPrint('Client ID or User ID is empty, cannot connect to MQTT.');
       return;
     }
 
-    final String topic = 'push/notification/$userId';
+    final String notificationTopic = 'push/notification/$userId';
+    final String refreshTopic = 'esp32/refresh/$userId';
+
     _client = MqttServerClient(broker, clientId);
     _client!.port = port;
     _client!.logging(on: false);
@@ -45,8 +55,8 @@ class MqttService {
     try {
       await _client!.connect();
       if (_client!.connectionStatus!.state == MqttConnectionState.connected) {
-        debugPrint('MQTT Connected');
-        _subscribeToTopic(topic);
+        debugPrint('MQTT Connected successfully');
+        _subscribeToNotificationTopic(notificationTopic);
       } else {
         debugPrint('MQTT Connection Failed');
         _attemptReconnect();
@@ -57,47 +67,157 @@ class MqttService {
     }
   }
 
+  // Subscribe to notification topic
+  void _subscribeToNotificationTopic(String topic) {
+    if (_client != null &&
+        _client!.connectionStatus != null &&
+        _client!.connectionStatus!.state == MqttConnectionState.connected) {
+      _client!.subscribe(topic, MqttQos.atLeastOnce);
+
+      _notificationSubscription = _client!.updates?.listen((messages) {
+        final MqttPublishMessage recMessage =
+            messages[0].payload as MqttPublishMessage;
+        final payload = MqttPublishPayload.bytesToStringAsString(
+          recMessage.payload.message,
+        );
+
+        // Only process notification if not in refresh state
+        // if (!_isRefreshing) {
+        try {
+          final Map<String, dynamic> notificationData = jsonDecode(payload);
+          // Check if this is not a refresh response
+          if (messages.last.topic == 'push/notification/$userId') {
+            debugPrint('Received notification: $payload');
+            onNewNotification?.call(payload);
+          }
+        } catch (e) {
+          debugPrint('Error parsing notification: $e');
+          //onNewNotification?.call();
+        }
+        // }
+      });
+    } else {
+      debugPrint(
+        'Client is not connected, cannot subscribe to notification topic.',
+      );
+    }
+  }
+
+  // Send refresh signal
+  Future<void> sendRefreshSignal(String deviceItemId) async {
+    // Set refresh state
+    // _isRefreshing = true;
+
+    final String topic = 'esp32/refresh/$deviceItemId';
+    final String responseTopic = 'esp32/refresh/response/$deviceItemId';
+
+    final MqttClientPayloadBuilder builder = MqttClientPayloadBuilder();
+    builder.addString('refresh');
+
+    final completer = Completer<void>();
+
+    try {
+      if (_client != null &&
+          _client!.connectionStatus != null &&
+          _client!.connectionStatus!.state == MqttConnectionState.connected) {
+        // Subscribe to response topic before sending
+        _client!.subscribe(responseTopic, MqttQos.atLeastOnce);
+
+        // Send refresh signal
+        await _client!.publishMessage(
+          topic,
+          MqttQos.atLeastOnce,
+          builder.payload!,
+        );
+        debugPrint('Refresh signal sent to IoT');
+
+        // Listen for refresh response
+        _refreshSubscription = _client!.updates?.listen((messages) {
+          final MqttPublishMessage recMessage =
+              messages[0].payload as MqttPublishMessage;
+          final payload = MqttPublishPayload.bytesToStringAsString(
+            recMessage.payload.message,
+          );
+
+          try {
+            final Map<String, dynamic> response = jsonDecode(payload);
+
+            // Check if this is a refresh response
+            if (messages.last.topic == responseTopic) {
+              onNewNotification?.call(payload);
+              debugPrint('Received refresh response: $payload');
+              debugPrint('Refresh response received');
+
+              // Unsubscribe from refresh topic
+              _client!.unsubscribe(responseTopic);
+              _refreshSubscription?.cancel();
+
+              // Complete refresh process
+              if (!completer.isCompleted) {
+                completer.complete();
+              }
+            }
+          } catch (e) {
+            debugPrint('Error parsing refresh response: $e');
+          }
+        });
+
+        // Timeout for refresh
+        Future.delayed(Duration(seconds: 30), () {
+          if (!completer.isCompleted) {
+            debugPrint('Refresh response timeout');
+            onNewNotification?.call('');
+            _client!.unsubscribe(responseTopic);
+            _refreshSubscription?.cancel();
+            //completer.completeError('Timeout');
+          }
+        });
+      } else {
+        debugPrint('MQTT Client is not connected. Attempting to reconnect...');
+        _attemptReconnect();
+        completer.completeError('Not connected');
+      }
+    } catch (e) {
+      debugPrint('Error sending refresh signal: $e');
+      _attemptReconnect();
+      completer.completeError(e);
+    } finally {
+      // Ensure refresh state is reset
+      return completer.future.whenComplete(() {
+        _isRefreshing = false;
+      });
+    }
+  }
+
+  // Attempt to reconnect to MQTT broker
   void _attemptReconnect() {
-    Future.delayed(Duration(seconds: 5), () {
+    Future.delayed(Duration(seconds: 5), () async {
       if (_client == null ||
           _client!.connectionStatus!.state != MqttConnectionState.connected) {
-        debugPrint('Reconnecting to MQTT Broker...');
-        connect();
+        debugPrint('Attempting to reconnect to MQTT Broker...');
+        await connect();
       }
     });
   }
 
-  void _subscribeToTopic(String topic) {
-    _client!.subscribe(topic, MqttQos.atLeastOnce);
-    _client!.updates!.listen((List<MqttReceivedMessage<MqttMessage>> messages) {
-      final MqttPublishMessage recMessage =
-          messages[0].payload as MqttPublishMessage;
-      final payload = MqttPublishPayload.bytesToStringAsString(
-        recMessage.payload.message,
-      );
-      debugPrint('Received: $payload');
-      if (onNewNotification != null) {
-        onNewNotification!(); // Gọi hàm cập nhật UI
-      }
-    });
-  }
-
+  // Disconnect from MQTT broker
   void disconnect() {
+    // Cancel any active subscriptions
+    _notificationSubscription?.cancel();
+    _refreshSubscription?.cancel();
+
+    // Disconnect the client
     _client?.disconnect();
   }
 
+  // Callback when connected to MQTT broker
   void onConnected() {
     debugPrint('Connected to MQTT Broker');
   }
 
+  // Callback when disconnected from MQTT broker
   void onDisconnected() {
     debugPrint('Disconnected from MQTT Broker');
-    Future.delayed(Duration(seconds: 5), () {
-      if (_client != null &&
-          _client!.connectionStatus!.state != MqttConnectionState.connected) {
-        debugPrint('Reconnecting to MQTT Broker...');
-        connect();
-      }
-    });
+    _attemptReconnect();
   }
 }

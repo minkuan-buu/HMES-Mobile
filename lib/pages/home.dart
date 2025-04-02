@@ -159,13 +159,15 @@ class _BottomNavigationBarExampleState
   int _selectedIndex = 0;
   bool hasNewNotification = false; // Trạng thái thông báo mới
   final PageController _pageController = PageController();
-  late MqttService mqttService; // Khởi tạo trễ
+  late MqttService mqttService; // Khai báo mqttService theo kiểu instance
+  String message = 'Chưa nhận thông báo';
 
   @override
   void initState() {
     super.initState();
-    mqttService = MqttService(onNewNotification: onNewNotification);
-    mqttService.connect();
+    mqttService = MqttService(); // Sử dụng singleton MqttService
+    mqttService.onNewNotification = (message) => onNewNotification(message);
+    mqttService.connect(); // Kết nối MQTT
   }
 
   void _changeIndex(int index) {
@@ -179,10 +181,12 @@ class _BottomNavigationBarExampleState
   }
 
   // Hàm cập nhật khi có thông báo mới
-  void onNewNotification() {
+  void onNewNotification(String message) {
     setState(() {
-      hasNewNotification = true;
+      this.message = message; // Cập nhật thông báo mới
+      hasNewNotification = true; // Đánh dấu có thông báo mới
     });
+    debugPrint('Nhận thông báo mới: $message');
   }
 
   @override

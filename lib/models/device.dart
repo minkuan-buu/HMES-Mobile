@@ -69,6 +69,8 @@ class DeviceItemModel {
     required this.plantName,
     required this.serial,
     required this.isOnline,
+    required this.warrantyExpiryDate,
+    required this.lastUpdatedDate,
   });
 
   String getDeviceItemId() {
@@ -119,6 +121,16 @@ class DeviceItemModel {
       plantName: json['plantName'],
       serial: json['serial'],
       isOnline: json['isOnline'],
+      warrantyExpiryDate:
+          json['warrantyExpiryDate'] != null
+              ? DateTime.parse(json['warrantyExpiryDate'])
+                  .toLocal() // ✅ Chuyển về giờ địa phương
+              : null,
+      lastUpdatedDate:
+          json['lastUpdatedDate'] != null
+              ? DateTime.parse(json['lastUpdatedDate'])
+                  .toLocal() // ✅ Chuyển về giờ địa phương
+              : null,
     );
   }
 }

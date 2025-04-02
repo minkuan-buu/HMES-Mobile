@@ -2,12 +2,13 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:hmes/components/components.dart';
+import 'package:network_info_plus/network_info_plus.dart';
 import 'package:hmes/context/baseAPI_URL.dart';
 import 'package:hmes/helper/secureStorageHelper.dart';
 import 'package:hmes/models/wifi.dart';
 import 'package:hmes/pages/home.dart';
 import 'package:http/http.dart' as http;
+import 'package:permission_handler/permission_handler.dart';
 
 class TutorialConnectScreen extends StatefulWidget {
   const TutorialConnectScreen({super.key});
@@ -17,6 +18,13 @@ class TutorialConnectScreen extends StatefulWidget {
 }
 
 class _TutorialConnectScreenState extends State<TutorialConnectScreen> {
+  bool _isLoading = true; // Thêm trạng thái tải
+
+  @override
+  void initState() {
+    super.initState();
+  }
+
   @override
   Widget build(BuildContext context) {
     double screenWidth = MediaQuery.of(context).size.width;
@@ -42,21 +50,19 @@ class _TutorialConnectScreenState extends State<TutorialConnectScreen> {
         child: Padding(
           padding: const EdgeInsets.all(1.0),
           child: SingleChildScrollView(
-            // 👈 Thêm phần này
             child: Column(
-              crossAxisAlignment:
-                  CrossAxisAlignment.center, // Căn giữa nội dung
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 const SizedBox(height: 20),
                 Center(
                   child: Image(
-                    image: AssetImage('assets/images/connection.png'),
+                    image: const AssetImage('assets/images/connection.png'),
                     width: 100,
                     height: 100,
                   ),
                 ),
                 const SizedBox(height: 10),
-                Center(
+                const Center(
                   child: Text(
                     '1. Hãy kết nối thiết bị IoT với nguồn điện',
                     style: TextStyle(
@@ -64,19 +70,19 @@ class _TutorialConnectScreenState extends State<TutorialConnectScreen> {
                       fontWeight: FontWeight.bold,
                       color: Colors.black,
                     ),
-                    textAlign: TextAlign.center, // Căn giữa nội dung
+                    textAlign: TextAlign.center,
                   ),
                 ),
                 const SizedBox(height: 20),
                 Center(
                   child: Image(
-                    image: AssetImage('assets/images/wifi_tutorial.png'),
+                    image: const AssetImage('assets/images/wifi_tutorial.png'),
                     width: 400,
                     height: 400,
                   ),
                 ),
                 const SizedBox(height: 10),
-                Center(
+                const Center(
                   child: Text(
                     '2. Kết nối với wifi có tên "HMES-Kit" với mật khẩu là "12345678". Sau đó bấm Tiếp tục',
                     style: TextStyle(
@@ -84,7 +90,7 @@ class _TutorialConnectScreenState extends State<TutorialConnectScreen> {
                       fontWeight: FontWeight.bold,
                       color: Colors.black,
                     ),
-                    textAlign: TextAlign.center, // Căn giữa nội dung
+                    textAlign: TextAlign.center,
                   ),
                 ),
                 const SizedBox(height: 50),
@@ -92,7 +98,7 @@ class _TutorialConnectScreenState extends State<TutorialConnectScreen> {
                   child: ClipRRect(
                     borderRadius: const BorderRadius.all(Radius.circular(10)),
                     child: SizedBox(
-                      width: double.infinity, // Nút kéo dài hết chiều ngang
+                      width: double.infinity,
                       height: 50,
                       child: ElevatedButton(
                         onPressed: () {
@@ -118,6 +124,7 @@ class _TutorialConnectScreenState extends State<TutorialConnectScreen> {
                     ),
                   ),
                 ),
+                const SizedBox(height: 50),
               ],
             ),
           ),
@@ -137,90 +144,100 @@ class WifiConnection extends StatefulWidget {
 class _WifiConnectionState extends State<WifiConnection> {
   List<WifiModel> wifiList = [];
   bool _isLoading = true;
-  late Timer _timer; // 👈 Thêm Timer
+  bool _allowGetWifiList = false;
+  late Timer _timer;
+  final info = NetworkInfo();
+  String? _currentSSID; // Thêm biến để lưu SSID hiện tại
 
   @override
   void initState() {
     super.initState();
-    _getListWifi();
-
-    // 👇 Gọi hàm mỗi 10 giây
+    _fetchData();
     _timer = Timer.periodic(const Duration(seconds: 20), (timer) {
-      _getListWifi();
+      if (_allowGetWifiList) {
+        _getListWifi();
+      }
     });
   }
 
   @override
   void dispose() {
-    _timer.cancel(); // 👈 Hủy Timer khi màn hình bị đóng
+    _timer.cancel();
     super.dispose();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Kết nối Wifi'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh), // Biểu tượng nút refresh
-            onPressed: () {
-              setState(() => _isLoading = true); // Hiện vòng tròn loading
-              _getListWifi();
-            },
+  Future<void> _fetchData() async {
+    await _requestPermission();
+    await _getWifiSSID();
+    setState(() {
+      _isLoading = false;
+    });
+  }
+
+  Future<void> _requestPermission() async {
+    var status = await Permission.location.status;
+    if (!status.isGranted) {
+      status = await Permission.location.request();
+      if (!status.isGranted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Cần quyền vị trí để lấy thông tin WiFi.'),
           ),
-        ],
-      ),
-      body:
-          _isLoading
-              ? const Center(child: CircularProgressIndicator())
-              : RefreshIndicator(
-                // 👈 Kéo xuống để làm mới
-                onRefresh: _getListWifi,
-                child: ListView.builder(
-                  itemCount: wifiList.length,
-                  itemBuilder: (context, index) {
-                    return ListTile(
-                      title: Text(wifiList[index].getSsid()),
-                      trailing: getWiFiIcon(wifiList[index].getRssi()),
-                      onTap: () {
-                        _timer.cancel();
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder:
-                                (context) => InputWifiPassword(
-                                  ssid: wifiList[index].getSsid(),
-                                ),
-                          ),
-                        );
-                        // Handle tap event
-                      },
-                    );
-                  },
-                ),
-              ),
-    );
+        );
+      }
+    }
+  }
+
+  Future<void> _getWifiSSID() async {
+    try {
+      _currentSSID = await info.getWifiName();
+      if (_currentSSID != null) {
+        _currentSSID = _currentSSID!.substring(1, _currentSSID!.length - 1);
+      }
+      _allowGetWifiList = _currentSSID == "HMES-Kit";
+      if (_allowGetWifiList) {
+        _getListWifi();
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Vui lòng kết nối với wifi HMES-Kit')),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint("Error getting SSID: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Không thể lấy SSID.')));
+      }
+    }
   }
 
   Future<void> _getListWifi() async {
-    final response = await http.get(
-      Uri.parse('${kitUrl}scan'),
-      headers: <String, String>{
-        'Content-Type': 'application/json; charset=UTF-8',
-      },
-    );
-
-    if (response.statusCode == 200) {
-      Map<String, dynamic> responseJson = jsonDecode(response.body);
-      List<dynamic> data = responseJson['networks'];
-
-      setState(() {
-        wifiList = data.map((item) => WifiModel.fromJson(item)).toList();
-        _isLoading = false;
-      });
-    } else {
-      print('Failed to load WiFi list');
+    try {
+      final response = await http.get(Uri.parse('${kitUrl}scan'));
+      if (response.statusCode == 200) {
+        Map<String, dynamic> responseJson = jsonDecode(response.body);
+        List<dynamic> data = responseJson['networks'];
+        setState(() {
+          wifiList = data.map((item) => WifiModel.fromJson(item)).toList();
+          _isLoading = false;
+        });
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Không thể tải danh sách WiFi.')),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('Failed to load WiFi list: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Lỗi khi tải danh sách WiFi.')),
+        );
+      }
     }
   }
 
@@ -246,6 +263,58 @@ class _WifiConnectionState extends State<WifiConnection> {
         return const Icon(Icons.wifi_off, color: Colors.grey);
     }
   }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Kết nối Wifi'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: () {
+              setState(() => _isLoading = true);
+              _getListWifi();
+            },
+          ),
+        ],
+      ),
+      body:
+          _isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : _allowGetWifiList
+              ? RefreshIndicator(
+                onRefresh: _getListWifi,
+                child: ListView.builder(
+                  itemCount: wifiList.length,
+                  itemBuilder: (context, index) {
+                    return ListTile(
+                      title: Text(wifiList[index].getSsid()),
+                      trailing: getWiFiIcon(wifiList[index].getRssi()),
+                      onTap: () {
+                        _timer.cancel();
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder:
+                                (context) => InputWifiPassword(
+                                  ssid: wifiList[index].getSsid(),
+                                ),
+                          ),
+                        );
+                      },
+                    );
+                  },
+                ),
+              )
+              : const Center(
+                child: Text(
+                  'Vui lòng kết nối với wifi HMES-Kit',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+              ),
+    );
+  }
 }
 
 class InputWifiPassword extends StatefulWidget {
@@ -267,7 +336,7 @@ class _InputWifiPasswordState extends State<InputWifiPassword> {
         child: Column(
           children: [
             Text(
-              '${widget.ssid}',
+              widget.ssid,
               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 20),
