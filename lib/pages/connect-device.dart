@@ -408,7 +408,15 @@ class _InputWifiPasswordState extends State<InputWifiPassword> {
 
     if (response.statusCode == 200) {
       Map<String, dynamic> responseJson = jsonDecode(response.body);
-      Map<String, dynamic> token = responseJson['response']?['data'] ?? [];
+      Map<String, dynamic>? dataMap = responseJson['response']?['data'];
+      if (dataMap != null) {
+        Map<String, dynamic> token = dataMap;
+        // Sử dụng token
+        await updateToken(jsonEncode(token));
+      } else {
+        // Xử lý trường hợp map null.
+        print('Data map is null');
+      }
       // ✅ Kết nối thành công
       Navigator.pushNamedAndRemoveUntil(context, HomePage.id, (route) => false);
     } else {
