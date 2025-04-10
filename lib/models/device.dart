@@ -61,6 +61,7 @@ class DeviceItemModel {
   IoTResModel? ioTData;
   DateTime? warrantyExpiryDate;
   DateTime? lastUpdatedDate;
+  int refreshCycleHours;
 
   DeviceItemModel({
     required this.deviceItemId,
@@ -71,6 +72,7 @@ class DeviceItemModel {
     required this.isOnline,
     required this.warrantyExpiryDate,
     required this.lastUpdatedDate,
+    required this.refreshCycleHours,
   });
 
   String getDeviceItemId() {
@@ -113,6 +115,14 @@ class DeviceItemModel {
     ioTData = data;
   }
 
+  int getRefreshCycleHours() {
+    return refreshCycleHours;
+  }
+
+  void setRefreshCycleHours(int hours) {
+    refreshCycleHours = hours;
+  }
+
   factory DeviceItemModel.fromJson(Map<String, dynamic> json) {
     return DeviceItemModel(
       deviceItemId: json['deviceItemId'],
@@ -121,6 +131,7 @@ class DeviceItemModel {
       plantName: json['plantName'],
       serial: json['serial'],
       isOnline: json['isOnline'],
+      refreshCycleHours: json['refreshCycleHours'] ?? 0,
       warrantyExpiryDate:
           json['warrantyExpiryDate'] != null
               ? DateTime.parse(json['warrantyExpiryDate'])
@@ -139,7 +150,7 @@ class IoTResModel {
   double soluteConcentration;
   double temperature;
   double ph;
-  double waterLevel;
+  int waterLevel;
 
   IoTResModel({
     required this.soluteConcentration,
@@ -160,7 +171,7 @@ class IoTResModel {
     return ph;
   }
 
-  double getWaterLevel() {
+  int getWaterLevel() {
     return waterLevel;
   }
 
@@ -169,7 +180,7 @@ class IoTResModel {
       soluteConcentration: json['soluteConcentration']?.toDouble() ?? 0,
       temperature: json['temperature']?.toDouble() ?? 0,
       ph: json['ph']?.toDouble() ?? 0.0,
-      waterLevel: json['waterLevel']?.toDouble() ?? 0,
+      waterLevel: (json['waterLevel'] ?? 0).round(),
     );
   }
 }

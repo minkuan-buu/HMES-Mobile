@@ -263,6 +263,7 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
   String _getDeviceStatus = '';
   bool hasNewData = false;
   DeviceItemModel? _deviceItem;
+  int selectedOption = 5; // Default value for the dropdown
 
   @override
   void initState() {
@@ -354,7 +355,7 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
                                         _deviceItem
                                                 ?.ioTData
                                                 ?.soluteConcentration
-                                                .toString() ??
+                                                .toStringAsFixed(1) ??
                                             '',
                                         style: TextStyle(
                                           fontSize: screenWidth * 0.2,
@@ -396,7 +397,7 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
                                           SizedBox(width: screenWidth * 0.02),
                                           Text(
                                             _deviceItem?.ioTData?.temperature
-                                                    .toString() ??
+                                                    .toStringAsFixed(1) ??
                                                 '',
                                             style: TextStyle(
                                               color: Colors.white,
@@ -420,7 +421,7 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
                                           SizedBox(width: screenWidth * 0.02),
                                           Text(
                                             _deviceItem?.ioTData?.ph
-                                                    .toString() ??
+                                                    .toStringAsFixed(2) ??
                                                 '',
                                             style: TextStyle(
                                               color: Colors.white,
@@ -788,6 +789,47 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
                               horizontal: screenWidth * 0.04, // Thay vì 15
                               vertical: screenHeight * 0.001,
                             ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'Thời gian cập nhật dữ liệu',
+                                  style: TextStyle(
+                                    fontSize: screenWidth * 0.045,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.black,
+                                  ),
+                                ),
+                                DropdownButton<int>(
+                                  value: _deviceItem?.refreshCycleHours ?? 5,
+                                  items:
+                                      [5, 7, 10].map((int value) {
+                                        return DropdownMenuItem<int>(
+                                          value: value,
+                                          child: Text('$value tiếng'),
+                                        );
+                                      }).toList(),
+                                  onChanged: (int? newValue) {
+                                    if (newValue != null &&
+                                        _deviceItem != null) {
+                                      setState(() {
+                                        _deviceItem!.setRefreshCycleHours(
+                                          newValue,
+                                        );
+                                      });
+                                      selectedOption = newValue;
+                                      _updateRefreshCycle();
+                                    }
+                                  },
+                                ),
+                              ],
+                            ),
+                          ),
+                          Container(
+                            margin: EdgeInsets.symmetric(
+                              horizontal: screenWidth * 0.04, // Thay vì 15
+                              vertical: screenHeight * 0.001,
+                            ),
                             child: Text(
                               '*Việc chọn cây trồng sẽ giúp chúng tôi đưa ra những cảnh báo chính xác hơn cho từng loại cây bạn trồng.',
                               style: TextStyle(
@@ -815,7 +857,7 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
     );
   }
 
-  void RefreshData(String message) {
+  Future<void> RefreshData(String message) async {
     // Sau khi hoàn thành việc xử lý dữ liệu, bật lại nút
     setState(() {
       _isButtonRefresh = true;
@@ -823,6 +865,94 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
     if (message == '') {
       Fluttertoast.showToast(
         msg: 'Không có dữ liệu mới',
+        toastLength: Toast.LENGTH_SHORT,
+        gravity: ToastGravity.BOTTOM,
+        timeInSecForIosWeb: 1,
+        textColor: Colors.black,
+        fontSize: 16.0,
+      );
+    }
+    // parse dữ liệu sang json
+    Map<String, dynamic> jsonData = jsonDecode(message);
+    // Kiểm tra xem dữ liệu có hợp lệ không
+    if (jsonData.isNotEmpty) {
+      // Cập nhật dữ liệu vào model
+      _deviceItem?.setIoTData(IoTResModel.fromJson(jsonData));
+      // Cập nhật lại giao diện
+      setState(() {
+        _deviceItem?.ioTData?.ph = jsonData['ph'] ?? 0.0;
+        _deviceItem?.ioTData?.soluteConcentration =
+            jsonData['soluteConcentration'] ?? 0.0;
+        _deviceItem?.ioTData?.temperature = jsonData['temperature'] ?? 0.0;
+        _deviceItem?.ioTData?.waterLevel = jsonData['waterLevel'] ?? 0.0;
+      });
+      String token = (await getToken()).toString();
+      String refreshToken = (await getRefreshToken()).toString();
+      String deviceId = (await getDeviceId()).toString();
+
+      if (!mounted) return; // Kiểm tra widget đã bị unmount hay chưa
+
+      final response = await http.post(
+        Uri.parse('${apiUrl}user/me/mobile/devices/${widget.deviceId}'),
+        headers: <String, String>{
+          'Content-Type': 'application/json; charset=UTF-8',
+          'Cookie': 'DeviceId=$deviceId; RefreshToken=$refreshToken',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode(jsonData),
+      );
+
+      String? newAccessToken = response.headers['new-access-token'];
+      if (newAccessToken != null) {
+        await updateToken(newAccessToken);
+      }
+
+      if (!mounted) return; // Kiểm tra lại widget trước khi setState
+
+      if (response.statusCode == 200) {
+        Fluttertoast.showToast(
+          msg: 'Đã cập nhật dữ liệu',
+          toastLength: Toast.LENGTH_SHORT,
+          gravity: ToastGravity.BOTTOM,
+          timeInSecForIosWeb: 1,
+          textColor: Colors.black,
+          fontSize: 16.0,
+        );
+      } else if (response.statusCode == 401) {
+        if (mounted) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => Logout(controller: widget.controller),
+              ),
+            );
+          });
+        }
+      } else {
+        Map<String, dynamic> responseJson = jsonDecode(response.body);
+        _getDeviceStatus = responseJson['message'];
+
+        if (mounted) {
+          Fluttertoast.showToast(
+            msg: _getDeviceStatus,
+            toastLength: Toast.LENGTH_SHORT,
+            gravity: ToastGravity.BOTTOM,
+            timeInSecForIosWeb: 1,
+            textColor: Colors.black,
+            fontSize: 16.0,
+          );
+
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              Navigator.pop(context);
+            }
+          });
+        }
+      }
+    } else {
+      Fluttertoast.showToast(
+        msg: 'Không thể cập nhật dữ liệu lên máy chủ',
         toastLength: Toast.LENGTH_SHORT,
         gravity: ToastGravity.BOTTOM,
         timeInSecForIosWeb: 1,
@@ -842,7 +972,7 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
     if (!mounted) return; // Kiểm tra widget đã bị unmount hay chưa
 
     final response = await http.get(
-      Uri.parse('${apiUrl}user/me/devices/${widget.deviceId}'),
+      Uri.parse('${apiUrl}user/me/mobile/devices/${widget.deviceId}'),
       headers: <String, String>{
         'Content-Type': 'application/json; charset=UTF-8',
         'Cookie': 'DeviceId=$deviceId; RefreshToken=$refreshToken',
@@ -862,9 +992,9 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
       Map<String, dynamic> data = responseJson['response']?['data'] ?? {};
       _deviceItem = DeviceItemModel.fromJson(data);
       IoTResModel ioTData = IoTResModel.fromJson(data['ioTData'] ?? {});
-      _deviceItem?.setIoTData(ioTData); // Cập nhật dữ liệu IoT vào thiết bị
       setState(() {
         _isLoading = false;
+        _deviceItem?.setIoTData(ioTData); // Cập nhật dữ liệu IoT vào thiết bị
       });
       // Xử lý dữ liệu thiết bị ở đây
       _isLoading = false;
@@ -893,6 +1023,72 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
           fontSize: 16.0,
         );
 
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            Navigator.pop(context);
+          }
+        });
+      }
+    }
+  }
+
+  Future<void> _updateRefreshCycle() async {
+    String token = (await getToken()).toString();
+    String refreshToken = (await getRefreshToken()).toString();
+    String deviceId = (await getDeviceId()).toString();
+
+    if (!mounted) return; // Kiểm tra widget đã bị unmount hay chưa
+
+    final response = await http.patch(
+      Uri.parse('${apiUrl}user/me/devices/${widget.deviceId}/refresh-cycle'),
+      headers: <String, String>{
+        'Content-Type': 'application/json; charset=UTF-8',
+        'Cookie': 'DeviceId=$deviceId; RefreshToken=$refreshToken',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode(<String, dynamic>{'refreshCycleHours': selectedOption}),
+    );
+
+    String? newAccessToken = response.headers['new-access-token'];
+    if (newAccessToken != null) {
+      await updateToken(newAccessToken);
+    }
+
+    if (!mounted) return; // Kiểm tra lại widget trước khi setState
+
+    if (response.statusCode == 200) {
+      Fluttertoast.showToast(
+        msg: 'Cập nhật chu kỳ làm mới thành công',
+        toastLength: Toast.LENGTH_SHORT,
+        gravity: ToastGravity.BOTTOM,
+        timeInSecForIosWeb: 1,
+        textColor: Colors.black,
+        fontSize: 16.0,
+      );
+    } else if (response.statusCode == 401) {
+      if (mounted) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => Logout(controller: widget.controller),
+            ),
+          );
+        });
+      }
+    } else {
+      Map<String, dynamic> responseJson = jsonDecode(response.body);
+      _getDeviceStatus = responseJson['message'];
+
+      if (mounted) {
+        Fluttertoast.showToast(
+          msg: _getDeviceStatus,
+          toastLength: Toast.LENGTH_SHORT,
+          gravity: ToastGravity.BOTTOM,
+          timeInSecForIosWeb: 1,
+          textColor: Colors.black,
+          fontSize: 16.0,
+        );
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) {
             Navigator.pop(context);

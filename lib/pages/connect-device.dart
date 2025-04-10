@@ -327,8 +327,12 @@ class InputWifiPassword extends StatefulWidget {
 
 class _InputWifiPasswordState extends State<InputWifiPassword> {
   late String Password = '';
+  bool _isLoading = false;
+
   @override
   Widget build(BuildContext context) {
+    double screenWidth = MediaQuery.of(context).size.width;
+    double screenHeight = MediaQuery.of(context).size.height;
     return Scaffold(
       appBar: AppBar(title: const Text('Nhập mật khẩu Wifi')),
       body: Padding(
@@ -367,19 +371,32 @@ class _InputWifiPasswordState extends State<InputWifiPassword> {
                       //     builder: (context) => WifiConnection(),
                       //   ),
                       // );
+                      setState(() {
+                        _isLoading = true;
+                      });
                       _connectToWifi(widget.ssid, Password);
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF9F7BFF),
                     ),
-                    child: const Text(
-                      'Kết nối',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
+                    child:
+                        _isLoading
+                            ? Text(
+                              'Cập nhật dữ liệu',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            )
+                            : SizedBox(
+                              width: screenWidth * 0.05,
+                              height: screenWidth * 0.05,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2,
+                              ),
+                            ),
                   ),
                 ),
               ),
@@ -417,6 +434,9 @@ class _InputWifiPasswordState extends State<InputWifiPassword> {
         // Xử lý trường hợp map null.
         print('Data map is null');
       }
+      setState(() {
+        _isLoading = false; // Đặt lại trạng thái tải
+      });
       // ✅ Kết nối thành công
       Navigator.pushNamedAndRemoveUntil(context, HomePage.id, (route) => false);
     } else {
@@ -439,6 +459,9 @@ class _InputWifiPasswordState extends State<InputWifiPassword> {
               ],
             ),
       );
+      setState(() {
+        _isLoading = false; // Đặt lại trạng thái tải
+      });
     }
   }
 }
