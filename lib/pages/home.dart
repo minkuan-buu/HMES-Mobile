@@ -230,6 +230,7 @@ class _BottomNavigationBarExampleState
             ),
             label: "Thông báo",
           ),
+
           const BottomNavigationBarItem(
             icon: Icon(Icons.person),
             label: "Tài khoản",
