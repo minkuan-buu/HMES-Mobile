@@ -1,4 +1,8 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:fluttertoast/fluttertoast.dart';
+import 'package:hmes/helper/logout.dart';
 import 'package:hmes/helper/secureStorageHelper.dart';
 import 'package:hmes/context/baseAPI_URL.dart';
 import 'package:hmes/models/ticket.dart';
@@ -83,9 +87,8 @@ class _TicketState extends State<Ticket> {
                                 context,
                                 MaterialPageRoute(
                                   builder:
-                                      (context) => DeviceDetailScreen(
-                                        deviceId: device.getId(),
-                                        deviceName: device.getName(),
+                                      (context) => TicketDetail(
+                                        ticketId: ticket.getId(),
                                         controller: widget.controller,
                                       ),
                                 ),
@@ -181,6 +184,59 @@ class _TicketState extends State<Ticket> {
         'Authorization': 'Bearer $token',
       },
     );
+
+    String? newAccessToken = response.headers['new-access-token'];
+    if (newAccessToken != null) {
+      await updateToken(newAccessToken);
+    }
+
+    if (!mounted) return; // Kiểm tra lại widget trước khi setState
+
+    if (response.statusCode == 200) {
+      Map<String, dynamic> responseJson = jsonDecode(response.body);
+      List<dynamic> dataList = responseJson['response']?['data'] ?? [];
+      _ticket = dataList.map((item) => TicketModel.fromJson(item)).toList();
+
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    } else if (response.statusCode == 401) {
+      if (mounted) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => Logout(controller: widget.controller),
+            ),
+          );
+        });
+      }
+    } else {
+      Map<String, dynamic> responseJson = jsonDecode(response.body);
+      _getDeviceStatus = responseJson['message'];
+
+      if (mounted) {
+        Fluttertoast.showToast(
+          msg: _getDeviceStatus,
+          toastLength: Toast.LENGTH_SHORT,
+          gravity: ToastGravity.BOTTOM,
+          timeInSecForIosWeb: 1,
+          textColor: Colors.black,
+          fontSize: 16.0,
+        );
+        setState(() {
+          _isLoading = false;
+        });
+
+        // WidgetsBinding.instance.addPostFrameCallback((_) {
+        //   if (mounted) {
+        //     Navigator.pop(context);
+        //   }
+        // });
+      }
+    }
   }
 }
 
@@ -199,7 +255,13 @@ class _CreateTicketState extends State<CreateTicket> {
 }
 
 class TicketDetail extends StatefulWidget {
-  const TicketDetail({super.key});
+  const TicketDetail({
+    super.key,
+    required this.ticketId,
+    required this.controller,
+  });
+  final String ticketId;
+  final PageController controller;
 
   @override
   State<TicketDetail> createState() => _TicketDetailState();
