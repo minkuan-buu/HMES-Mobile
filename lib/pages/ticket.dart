@@ -1,8 +1,16 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:fluttertoast/fluttertoast.dart';
+import 'package:hmes/helper/logout.dart';
 import 'package:hmes/helper/secureStorageHelper.dart';
 import 'package:hmes/context/baseAPI_URL.dart';
 import 'package:hmes/models/ticket.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:path/path.dart';
 import 'package:http/http.dart' as http;
+import 'package:intl/intl.dart';
 
 class Ticket extends StatefulWidget {
   const Ticket({super.key, required this.controller});
@@ -22,6 +30,41 @@ class _TicketState extends State<Ticket> {
   void initState() {
     super.initState();
     _getTickets();
+  }
+
+  String getStatusLabel(String status) {
+    switch (status) {
+      case "InProgress":
+        return "Đang xử lý";
+      case "Pending":
+        return "Đang chờ";
+      case "Closed":
+        return "Đã đóng";
+      case "Done":
+        return "Đã hoàn thành";
+      case "IsTransferring":
+        return "Đang chuyển hỗ trợ";
+      default:
+        return "Chuẩn bị từ chối";
+    }
+  }
+
+  // Hàm trả về màu theo trạng thái
+  Color getStatusColor(String status) {
+    switch (status) {
+      case "InProgress":
+        return Colors.blue;
+      case "Pending":
+        return Colors.amber;
+      case "Closed":
+        return Colors.red;
+      case "Done":
+        return Colors.green;
+      case "IsTransferring":
+        return Colors.purple;
+      default:
+        return Colors.red;
+    }
   }
 
   @override
@@ -44,7 +87,7 @@ class _TicketState extends State<Ticket> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: const [
                 Text(
-                  'Thiết bị',
+                  'Phiếu hỗ trợ',
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 25,
@@ -80,12 +123,11 @@ class _TicketState extends State<Ticket> {
                           return InkWell(
                             onTap: () {
                               Navigator.push(
-                                context,
+                                this.context,
                                 MaterialPageRoute(
                                   builder:
-                                      (context) => DeviceDetailScreen(
-                                        deviceId: device.getId(),
-                                        deviceName: device.getName(),
+                                      (context) => TicketDetail(
+                                        ticketId: ticket.getId(),
                                         controller: widget.controller,
                                       ),
                                 ),
@@ -96,43 +138,41 @@ class _TicketState extends State<Ticket> {
                               children: [
                                 Row(
                                   children: [
-                                    // Icon(
-                                    //   Icons.circle,
-                                    //   color:
-                                    //       device.getIsOnline()
-                                    //           ? Colors.green
-                                    //           : Colors.red,
-                                    // ),
-                                    const SizedBox(width: 10),
-                                    Text(
-                                      ticket.getBriefDescription(),
-                                      style: const TextStyle(
-                                        fontSize: 20,
-                                        fontWeight: FontWeight.bold,
+                                    Expanded(
+                                      child: Text(
+                                        ticket.getBriefDescription(),
+                                        style: const TextStyle(
+                                          fontSize: 20,
+                                          fontWeight: FontWeight.bold,
+                                        ),
                                       ),
                                     ),
                                     Chip(
                                       label: Text(
-                                        ticket.status == "InProgress"
-                                            ? "Đang xử lý"
-                                            : ticket.status == "Pending"
-                                            ? "Đang chờ"
-                                            : ticket.status == "Closed"
-                                            ? "Đã đóng"
-                                            : ticket.status == "Done"
-                                            ? "Đã hoàn thành"
-                                            : ticket.status == "IsTransferring"
-                                            ? "Đang chuyển hỗ trợ"
-                                            : "Chuyển bị từ chối",
+                                        getStatusLabel(ticket.status),
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                      backgroundColor: getStatusColor(
+                                        ticket.status,
+                                      ),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(20),
                                       ),
                                     ),
                                   ],
                                 ),
                                 const SizedBox(height: 10),
                                 Text(
-                                  'Thể loại: ${ticket.type == "Shopping" ? "Mua hàng" : "Kỹ thuật"}',
+                                  'Loại hỗ trợ: ${ticket.type == "Shopping" ? "Mua hàng" : "Kỹ thuật"}',
                                 ),
-                                const SizedBox(height: 20),
+                                Divider(
+                                  color: Colors.grey,
+                                  thickness: 0.5,
+                                  height: 20,
+                                ),
+                                const SizedBox(height: 10),
                               ],
                             ),
                           );
@@ -158,7 +198,9 @@ class _TicketState extends State<Ticket> {
         onPressed: () {
           Navigator.push(
             context,
-            MaterialPageRoute(builder: (context) => CreateTicket()),
+            MaterialPageRoute(
+              builder: (context) => CreateTicket(controller: widget.controller),
+            ),
           );
         },
         tooltip: 'Thêm thiết bị',
@@ -174,40 +216,1177 @@ class _TicketState extends State<Ticket> {
 
     if (!mounted) return; // Kiểm tra widget đã bị unmount hay chưa
     final response = await http.get(
-      Uri.parse('${apiUrl}user/me/devices'),
+      Uri.parse('${apiUrl}ticket?pageSize=1000'),
       headers: <String, String>{
         'Content-Type': 'application/json; charset=UTF-8',
         'Cookie': 'DeviceId=$deviceId; RefreshToken=$refreshToken',
         'Authorization': 'Bearer $token',
       },
     );
+
+    String? newAccessToken = response.headers['new-access-token'];
+    if (newAccessToken != null) {
+      await updateToken(newAccessToken);
+    }
+
+    if (!mounted) return; // Kiểm tra lại widget trước khi setState
+
+    if (response.statusCode == 200) {
+      Map<String, dynamic> responseJson = jsonDecode(response.body);
+      List<dynamic> dataList = responseJson['response']?['data'] ?? [];
+      _ticket = dataList.map((item) => TicketModel.fromJson(item)).toList();
+
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    } else if (response.statusCode == 401) {
+      if (mounted) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          Navigator.push(
+            this.context,
+            MaterialPageRoute(
+              builder: (context) => Logout(controller: widget.controller),
+            ),
+          );
+        });
+      }
+    } else {
+      Map<String, dynamic> responseJson = jsonDecode(response.body);
+      _getDeviceStatus = responseJson['message'];
+
+      if (mounted) {
+        Fluttertoast.showToast(
+          msg: _getDeviceStatus,
+          toastLength: Toast.LENGTH_SHORT,
+          gravity: ToastGravity.BOTTOM,
+          timeInSecForIosWeb: 1,
+          textColor: Colors.black,
+          fontSize: 16.0,
+        );
+        setState(() {
+          _isLoading = false;
+        });
+
+        // WidgetsBinding.instance.addPostFrameCallback((_) {
+        //   if (mounted) {
+        //     Navigator.pop(context);
+        //   }
+        // });
+      }
+    }
   }
 }
 
 class CreateTicket extends StatefulWidget {
-  const CreateTicket({super.key});
+  const CreateTicket({super.key, required this.controller});
+  static String id = 'create_ticket_screen';
+  final PageController controller;
 
   @override
   State<CreateTicket> createState() => _CreateTicketState();
 }
 
 class _CreateTicketState extends State<CreateTicket> {
+  String? selectedType = 'Shopping';
+  List<DeviceItemTicket>? _deviceItemTicket;
+  bool _isLoadingDevice = false;
+  bool _isTicketSending = false;
+  late TextEditingController _responseController;
+  String _ticketDescription = '';
+  String _getDeviceStatus = '';
+  String? selectedDeviceId;
+  String _getTicketStatus = '';
+
+  @override
+  void initState() {
+    // TODO: implement initState
+    super.initState();
+    _responseController = TextEditingController();
+  }
+
+  final List<XFile> _selectedImages = [];
+  final ImagePicker _picker = ImagePicker();
+
+  Future<void> _pickImages() async {
+    final List<XFile> images = await _picker.pickMultiImage();
+    if (images.isNotEmpty) {
+      setState(() {
+        _selectedImages.addAll(images);
+      });
+    }
+  }
+
+  void _removeImage(int index) {
+    setState(() {
+      _selectedImages.removeAt(index);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    return const Placeholder();
+    double screenWidth = MediaQuery.of(context).size.width;
+    double screenHeight = MediaQuery.of(context).size.height;
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Tạo yêu cầu hỗ trợ'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            Navigator.pop(context);
+          },
+        ),
+      ),
+      body: Column(
+        children: [
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.only(
+                left: 20,
+                right: 20,
+                top: 15,
+                bottom: 15,
+              ),
+              child: Column(
+                children: [
+                  Text(
+                    'Mô tả yêu cầu hỗ trợ',
+                    style: TextStyle(
+                      fontSize: screenWidth * 0.05,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  DropdownButtonFormField<String>(
+                    value: selectedType,
+                    decoration: InputDecoration(
+                      labelText: 'Chọn loại yêu cầu hỗ trợ',
+                      border: OutlineInputBorder(), // <-- Đây là khung viền
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
+                    ),
+                    items:
+                        <String>['Mua hàng', 'Kỹ thuật'].map((String value) {
+                          return DropdownMenuItem<String>(
+                            value:
+                                value == 'Mua hàng' ? 'Shopping' : 'Technical',
+                            child: Text(value),
+                          );
+                        }).toList(),
+                    onChanged: (String? newValue) {
+                      setState(() {
+                        selectedType = newValue;
+                      });
+                      if (newValue == "Technical") {
+                        setState(() {
+                          _isLoadingDevice = true;
+                        });
+                        _loadDeviceItem(); // Gọi hàm tải lại thiết bị
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 20),
+                  if (selectedType == "Technical")
+                    _isLoadingDevice
+                        ? const Center(child: CircularProgressIndicator())
+                        : DropdownButtonFormField<String>(
+                          value: selectedDeviceId,
+                          decoration: const InputDecoration(
+                            labelText: 'Chọn thiết bị',
+                            border: OutlineInputBorder(),
+                            contentPadding: EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 10,
+                            ),
+                          ),
+                          items:
+                              _deviceItemTicket?.map((device) {
+                                return DropdownMenuItem<String>(
+                                  value: device.id,
+                                  child: SizedBox(
+                                    width: screenWidth * 0.75,
+                                    child: Text(
+                                      "${device.name} - ${device.id}",
+                                      overflow: TextOverflow.ellipsis,
+                                      maxLines: 1,
+                                    ),
+                                  ),
+                                );
+                              }).toList(),
+                          onChanged: (String? newId) {
+                            setState(() {
+                              selectedDeviceId = newId;
+                            });
+                          },
+                        ),
+
+                  const SizedBox(height: 20),
+                  TextField(
+                    controller: _responseController,
+                    onChanged: (value) {
+                      setState(() {
+                        _ticketDescription = value;
+                      });
+                    },
+                    maxLines: 3,
+                    decoration: InputDecoration(
+                      labelText: 'Nhập mô tả yêu cầu hỗ trợ',
+                      border: OutlineInputBorder(), // <-- Đây là khung viền
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 10,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  if (_selectedImages.isNotEmpty)
+                    SizedBox(
+                      height: 90,
+                      child: ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: _selectedImages.length,
+                        itemBuilder: (context, index) {
+                          return Stack(
+                            children: [
+                              Container(
+                                margin: const EdgeInsets.only(right: 8),
+                                width: 80,
+                                height: 80,
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(8),
+                                  image: DecorationImage(
+                                    image: FileImage(
+                                      File(_selectedImages[index].path),
+                                    ),
+                                    fit: BoxFit.cover,
+                                  ),
+                                ),
+                              ),
+                              Positioned(
+                                top: 2,
+                                right: 2,
+                                child: GestureDetector(
+                                  onTap: () => _removeImage(index),
+                                  child: const CircleAvatar(
+                                    radius: 10,
+                                    backgroundColor: Colors.black54,
+                                    child: Icon(
+                                      Icons.close,
+                                      size: 12,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          );
+                        },
+                      ),
+                    ),
+                  ClipRRect(
+                    borderRadius: const BorderRadius.all(Radius.circular(10)),
+                    child: SizedBox(
+                      width: double.infinity,
+                      height: 50,
+                      child: ElevatedButton(
+                        onPressed: _pickImages,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF9F7BFF),
+                        ),
+                        child: const Text(
+                          'Thêm tệp đính kèm',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  ClipRRect(
+                    borderRadius: const BorderRadius.all(Radius.circular(10)),
+                    child: SizedBox(
+                      width: double.infinity,
+                      height: 50,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          if (_ticketDescription.isEmpty || _isTicketSending) {
+                            Fluttertoast.showToast(
+                              msg: 'Vui lòng nhập mô tả yêu cầu hỗ trợ',
+                              toastLength: Toast.LENGTH_SHORT,
+                              gravity: ToastGravity.BOTTOM,
+                              timeInSecForIosWeb: 1,
+                              textColor: Colors.black,
+                              fontSize: 16.0,
+                            );
+                            return;
+                          }
+                          _sendTicket();
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF9F7BFF),
+                        ),
+                        child: const Text(
+                          'Gửi yêu cầu hỗ trợ',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _sendTicket() async {
+    String token = (await getToken()).toString();
+    String refreshToken = (await getRefreshToken()).toString();
+    String deviceId = (await getDeviceId()).toString();
+
+    setState(() {
+      _isTicketSending = true; // Đặt trạng thái tải lại
+    });
+
+    final uri = Uri.parse('${apiUrl}ticket');
+    final request = http.MultipartRequest('POST', uri);
+
+    // Headers (chỉ cần Cookie và Authorization, KHÔNG cần Content-Type)
+    request.headers.addAll({
+      'Authorization': 'Bearer $token',
+      'Cookie': 'DeviceId=$deviceId; RefreshToken=$refreshToken',
+    });
+
+    request.fields['Type'] = selectedType ?? '';
+
+    if (selectedType == "Technical") {
+      request.fields['DeviceId'] = selectedDeviceId ?? '';
+    }
+
+    // Gửi message (field text)
+    request.fields['Description'] = _ticketDescription;
+
+    // Gửi file đính kèm nếu có
+    for (var file in _selectedImages) {
+      if (file != null && File(file.path).existsSync()) {
+        request.files.add(
+          await http.MultipartFile.fromPath(
+            'Attachments', // key phải đúng như BE yêu cầu
+            file.path,
+            filename: basename(file.path),
+          ),
+        );
+      }
+    }
+
+    try {
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+
+      String? newAccessToken = response.headers['new-access-token'];
+      if (newAccessToken != null) {
+        await updateToken(newAccessToken);
+      }
+
+      if (!mounted) return;
+
+      if (response.statusCode == 200) {
+        Fluttertoast.showToast(msg: 'Phản hồi đã được gửi thành công');
+        setState(() {
+          _isTicketSending = false;
+          _selectedImages.clear();
+          _responseController.clear();
+        });
+        Navigator.pop(this.context);
+      } else if (response.statusCode == 401) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          Navigator.push(
+            this.context,
+            MaterialPageRoute(
+              builder: (context) => Logout(controller: widget.controller),
+            ),
+          );
+        });
+      } else {
+        final responseJson = jsonDecode(response.body);
+        _getTicketStatus = responseJson['message'];
+        Fluttertoast.showToast(msg: _getTicketStatus);
+      }
+    } catch (e) {
+      Fluttertoast.showToast(msg: 'Lỗi gửi phản hồi: $e');
+    } finally {
+      setState(() {
+        _isTicketSending = false; // Đặt lại trạng thái tải lại
+      });
+    }
+  }
+
+  Future<void> _loadDeviceItem() async {
+    String token = (await getToken()).toString();
+    String refreshToken = (await getRefreshToken()).toString();
+    String deviceId = (await getDeviceId()).toString();
+
+    if (!mounted) return; // Kiểm tra widget đã bị unmount hay chưa
+    final response = await http.get(
+      Uri.parse('${apiUrl}device/me'),
+      headers: <String, String>{
+        'Content-Type': 'application/json; charset=UTF-8',
+        'Cookie': 'DeviceId=$deviceId; RefreshToken=$refreshToken',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    String? newAccessToken = response.headers['new-access-token'];
+    if (newAccessToken != null) {
+      await updateToken(newAccessToken);
+    }
+
+    if (!mounted) return; // Kiểm tra lại widget trước khi setState
+
+    if (response.statusCode == 200) {
+      Map<String, dynamic> responseJson = jsonDecode(response.body);
+      List<dynamic> dataList = responseJson['response']?['data'] ?? [];
+      _deviceItemTicket =
+          dataList.map((item) => DeviceItemTicket.fromJson(item)).toList();
+
+      if (mounted) {
+        setState(() {
+          _isLoadingDevice = false;
+        });
+      }
+    } else if (response.statusCode == 401) {
+      if (mounted) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          Navigator.push(
+            this.context,
+            MaterialPageRoute(
+              builder: (context) => Logout(controller: widget.controller),
+            ),
+          );
+        });
+      }
+    } else {
+      Map<String, dynamic> responseJson = jsonDecode(response.body);
+      _getDeviceStatus = responseJson['message'];
+
+      if (mounted) {
+        Fluttertoast.showToast(
+          msg: _getDeviceStatus,
+          toastLength: Toast.LENGTH_SHORT,
+          gravity: ToastGravity.BOTTOM,
+          timeInSecForIosWeb: 1,
+          textColor: Colors.black,
+          fontSize: 16.0,
+        );
+        setState(() {
+          _isLoadingDevice = false;
+        });
+
+        // WidgetsBinding.instance.addPostFrameCallback((_) {
+        //   if (mounted) {
+        //     Navigator.pop(context);
+        //   }
+        // });
+      }
+    }
   }
 }
 
 class TicketDetail extends StatefulWidget {
-  const TicketDetail({super.key});
+  const TicketDetail({
+    super.key,
+    required this.ticketId,
+    required this.controller,
+  });
+  final String ticketId;
+  final PageController controller;
 
   @override
   State<TicketDetail> createState() => _TicketDetailState();
 }
 
 class _TicketDetailState extends State<TicketDetail> {
+  late TicketDetailModel _ticketDetail;
+  late TextEditingController _responseController;
+  bool _isLoading = true;
+  String _getTicketStatus = '';
+  String _responseMessage = '';
+  bool _isResponseSending = false;
+
+  @override
+  void initState() {
+    // TODO: implement initState
+    super.initState();
+    _getTicketDetail();
+    _responseController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _responseController.dispose();
+    super.dispose();
+  }
+
+  String formatDateTime(DateTime dateTime) {
+    return DateFormat('HH:mm, dd/MM/yyyy').format(dateTime);
+  }
+
+  String getStatusLabel(String status) {
+    switch (status) {
+      case "InProgress":
+        return "Đang xử lý";
+      case "Pending":
+        return "Đang chờ";
+      case "Closed":
+        return "Đã đóng";
+      case "Done":
+        return "Đã hoàn thành";
+      case "IsTransferring":
+        return "Đang chuyển hỗ trợ";
+      default:
+        return "Chuẩn bị từ chối";
+    }
+  }
+
+  // Hàm trả về màu theo trạng thái
+  Color getStatusColor(String status) {
+    switch (status) {
+      case "InProgress":
+        return Colors.blue;
+      case "Pending":
+        return Colors.amber;
+      case "Closed":
+        return Colors.red;
+      case "Done":
+        return Colors.green;
+      case "IsTransferring":
+        return Colors.purple;
+      default:
+        return Colors.red;
+    }
+  }
+
+  final List<XFile> _selectedImages = [];
+  final ImagePicker _picker = ImagePicker();
+
+  Future<void> _pickImages() async {
+    final List<XFile> images = await _picker.pickMultiImage();
+    if (images.isNotEmpty) {
+      setState(() {
+        _selectedImages.addAll(images);
+      });
+    }
+  }
+
+  void _removeImage(int index) {
+    setState(() {
+      _selectedImages.removeAt(index);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    return const Placeholder();
+    double screenWidth = MediaQuery.of(context).size.width;
+    double screenHeight = MediaQuery.of(context).size.height;
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Chi tiết phiếu hỗ trợ'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            Navigator.pop(context);
+          },
+        ),
+      ),
+      body: Column(
+        children: [
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: () async {
+                setState(() {
+                  _isLoading = true;
+                });
+                await _getTicketDetail();
+                setState(() {
+                  _isLoading = false;
+                });
+              },
+              child:
+                  _isLoading
+                      ? const Center(child: CircularProgressIndicator())
+                      : _ticketDetail != null
+                      ? Column(
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.only(
+                              left: 20,
+                              right: 20,
+                              top: 15,
+                              bottom: 15,
+                            ),
+                            child: Column(
+                              children: [
+                                Text(
+                                  _ticketDetail.description,
+                                  style: const TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                Chip(
+                                  label: Text(
+                                    getStatusLabel(_ticketDetail.status),
+                                    style: const TextStyle(
+                                      fontSize: 11,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                  backgroundColor: getStatusColor(
+                                    _ticketDetail.status,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                ),
+                                Text(
+                                  'Loại hỗ trợ: ${_ticketDetail.type == "Shopping" ? "Mua hàng" : "Kỹ thuật"}',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 10),
+                                Text(
+                                  'Thời gian tạo phiếu hỗ trợ: ${formatDateTime(_ticketDetail.createdAt)}',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 10),
+                                _ticketDetail.attachments.isNotEmpty
+                                    ? SizedBox(
+                                      height: 90,
+                                      child: Center(
+                                        child: ListView.builder(
+                                          scrollDirection: Axis.horizontal,
+                                          shrinkWrap: true,
+                                          itemCount:
+                                              _ticketDetail.attachments.length,
+                                          itemBuilder: (context, index) {
+                                            return GestureDetector(
+                                              onTap: () {
+                                                Navigator.push(
+                                                  context,
+                                                  MaterialPageRoute(
+                                                    builder:
+                                                        (_) => ImageViewScreen(
+                                                          imageUrl:
+                                                              _ticketDetail
+                                                                  .attachments[index]!,
+                                                        ),
+                                                  ),
+                                                );
+                                              },
+                                              child: Container(
+                                                margin: const EdgeInsets.only(
+                                                  right: 8,
+                                                ),
+                                                width: 80,
+                                                height: 80,
+                                                decoration: BoxDecoration(
+                                                  borderRadius:
+                                                      BorderRadius.circular(8),
+                                                  image: DecorationImage(
+                                                    image: NetworkImage(
+                                                      _ticketDetail
+                                                          .attachments[index]!,
+                                                    ),
+                                                    fit: BoxFit.cover,
+                                                  ),
+                                                ),
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                      ),
+                                    )
+                                    : const SizedBox(),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          Expanded(
+                            child: ListView.builder(
+                              itemCount: _ticketDetail.ticketResponses.length,
+                              itemBuilder: (context, index) {
+                                final response =
+                                    _ticketDetail.ticketResponses[index];
+                                final isOwner =
+                                    response?.userId == _ticketDetail.createdBy;
+
+                                return Align(
+                                  alignment:
+                                      isOwner
+                                          ? Alignment.centerRight
+                                          : Alignment.centerLeft,
+                                  child: Container(
+                                    width:
+                                        screenWidth *
+                                        0.7, // Chiếm 70% chiều rộng màn hình
+                                    margin: EdgeInsets.symmetric(
+                                      vertical: screenHeight * 0.01,
+                                      horizontal: screenWidth * 0.025,
+                                    ),
+                                    padding: EdgeInsets.all(
+                                      screenWidth * 0.025,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color:
+                                          isOwner
+                                              ? Colors.blue[100]
+                                              : Colors.grey[200],
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          isOwner
+                                              ? CrossAxisAlignment.end
+                                              : CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          response?.userFullName ?? '',
+                                          style: TextStyle(
+                                            fontSize: screenWidth * 0.035,
+                                            color: Colors.black54,
+                                          ),
+                                        ),
+                                        SizedBox(height: screenHeight * 0.005),
+                                        Text(
+                                          response?.message ?? '',
+                                          style: TextStyle(
+                                            fontSize: screenWidth * 0.05,
+                                          ),
+                                        ),
+                                        if (response?.attachments.isNotEmpty ??
+                                            false)
+                                          Row(
+                                            mainAxisAlignment:
+                                                isOwner
+                                                    ? MainAxisAlignment.end
+                                                    : MainAxisAlignment.start,
+                                            children: [
+                                              SizedBox(
+                                                height: 90,
+                                                child: ListView.builder(
+                                                  scrollDirection:
+                                                      Axis.horizontal,
+                                                  shrinkWrap: true,
+                                                  itemCount:
+                                                      response!
+                                                          .attachments
+                                                          .length,
+                                                  itemBuilder: (
+                                                    context,
+                                                    index,
+                                                  ) {
+                                                    return GestureDetector(
+                                                      onTap: () {
+                                                        Navigator.push(
+                                                          context,
+                                                          MaterialPageRoute(
+                                                            builder:
+                                                                (
+                                                                  _,
+                                                                ) => ImageViewScreen(
+                                                                  imageUrl:
+                                                                      response
+                                                                          .attachments[index]!,
+                                                                ),
+                                                          ),
+                                                        );
+                                                      },
+                                                      child: Container(
+                                                        margin:
+                                                            const EdgeInsets.only(
+                                                              right: 8,
+                                                            ),
+                                                        width: 80,
+                                                        height: 80,
+                                                        decoration: BoxDecoration(
+                                                          borderRadius:
+                                                              BorderRadius.circular(
+                                                                8,
+                                                              ),
+                                                          image: DecorationImage(
+                                                            image: NetworkImage(
+                                                              response
+                                                                  .attachments[index]!,
+                                                            ),
+                                                            fit: BoxFit.cover,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    );
+                                                  },
+                                                ),
+                                              ),
+                                            ],
+                                          )
+                                        else
+                                          const SizedBox(),
+                                        const SizedBox(height: 5),
+                                        Text(
+                                          response?.createdAt != null
+                                              ? formatDateTime(
+                                                response!.createdAt!,
+                                              )
+                                              : '',
+                                          style: TextStyle(
+                                            fontSize: screenWidth * 0.028,
+                                            color: Colors.black38,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                          Container(
+                            padding: EdgeInsets.symmetric(
+                              vertical: screenHeight * 0.015,
+                              horizontal: screenWidth * 0.02,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.1),
+                                  spreadRadius: 2,
+                                  blurRadius: 5,
+                                  offset: const Offset(0, 3),
+                                ),
+                              ],
+                            ),
+                            child: Column(
+                              children: [
+                                // Hiển thị ảnh đính kèm nếu có
+                                if (_selectedImages.isNotEmpty)
+                                  SizedBox(
+                                    height: 90,
+                                    child: ListView.builder(
+                                      scrollDirection: Axis.horizontal,
+                                      itemCount: _selectedImages.length,
+                                      itemBuilder: (context, index) {
+                                        return Stack(
+                                          children: [
+                                            Container(
+                                              margin: const EdgeInsets.only(
+                                                right: 8,
+                                              ),
+                                              width: 80,
+                                              height: 80,
+                                              decoration: BoxDecoration(
+                                                borderRadius:
+                                                    BorderRadius.circular(8),
+                                                image: DecorationImage(
+                                                  image: FileImage(
+                                                    File(
+                                                      _selectedImages[index]
+                                                          .path,
+                                                    ),
+                                                  ),
+                                                  fit: BoxFit.cover,
+                                                ),
+                                              ),
+                                            ),
+                                            Positioned(
+                                              top: 2,
+                                              right: 2,
+                                              child: GestureDetector(
+                                                onTap:
+                                                    () => _removeImage(index),
+                                                child: const CircleAvatar(
+                                                  radius: 10,
+                                                  backgroundColor:
+                                                      Colors.black54,
+                                                  child: Icon(
+                                                    Icons.close,
+                                                    size: 12,
+                                                    color: Colors.white,
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        );
+                                      },
+                                    ),
+                                  ),
+
+                                const SizedBox(height: 10),
+                                Row(
+                                  children: [
+                                    IconButton(
+                                      icon: const Icon(Icons.attach_file),
+                                      onPressed: _pickImages,
+                                    ),
+                                    Expanded(
+                                      child: TextField(
+                                        controller: _responseController,
+                                        decoration: InputDecoration(
+                                          border: const OutlineInputBorder(),
+                                          label: Text(
+                                            'Nhập phản hồi của bạn',
+                                            style: TextStyle(
+                                              fontSize: screenWidth * 0.035,
+                                            ),
+                                          ),
+                                        ),
+
+                                        style: TextStyle(
+                                          fontSize: screenWidth * 0.04,
+                                        ),
+                                        onChanged: (value) {
+                                          setState(() {
+                                            _responseMessage = value;
+                                          });
+                                        },
+                                      ),
+                                    ),
+                                    SizedBox(width: screenWidth * 0.02),
+                                    _isResponseSending
+                                        ? const SizedBox(
+                                          width: 35,
+                                          height: 35,
+                                          child: CircularProgressIndicator(),
+                                        )
+                                        : IconButton(
+                                          color:
+                                              _responseMessage.isEmpty
+                                                  ? Colors.grey
+                                                  : Colors.blue,
+                                          icon: const Icon(Icons.send),
+                                          onPressed: () {
+                                            if (_responseMessage.isEmpty ||
+                                                _isResponseSending) {
+                                              Fluttertoast.showToast(
+                                                msg: 'Vui lòng nhập phản hồi',
+                                                toastLength: Toast.LENGTH_SHORT,
+                                                gravity: ToastGravity.BOTTOM,
+                                                timeInSecForIosWeb: 1,
+                                                textColor: Colors.black,
+                                                fontSize: 16.0,
+                                              );
+                                              return;
+                                            }
+                                            _sendResponse();
+                                            // Gửi phản hồi
+                                          },
+                                        ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      )
+                      : const Center(
+                        child: Text(
+                          'Không có thông tin chi tiết nào',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.grey,
+                          ),
+                        ),
+                      ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _sendResponse() async {
+    String token = (await getToken()).toString();
+    String refreshToken = (await getRefreshToken()).toString();
+    String deviceId = (await getDeviceId()).toString();
+
+    setState(() {
+      _isResponseSending = true; // Đặt trạng thái tải lại
+    });
+
+    final uri = Uri.parse('${apiUrl}ticket/response');
+    final request = http.MultipartRequest('POST', uri);
+
+    // Headers (chỉ cần Cookie và Authorization, KHÔNG cần Content-Type)
+    request.headers.addAll({
+      'Authorization': 'Bearer $token',
+      'Cookie': 'DeviceId=$deviceId; RefreshToken=$refreshToken',
+    });
+
+    request.fields['TicketId'] = widget.ticketId; // Gửi ticketId
+
+    // Gửi message (field text)
+    request.fields['Message'] = _responseMessage;
+
+    // Gửi file đính kèm nếu có
+    for (var file in _selectedImages) {
+      if (file != null && File(file.path).existsSync()) {
+        request.files.add(
+          await http.MultipartFile.fromPath(
+            'Attachments', // key phải đúng như BE yêu cầu
+            file.path,
+            filename: basename(file.path),
+          ),
+        );
+      }
+    }
+
+    try {
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+
+      String? newAccessToken = response.headers['new-access-token'];
+      if (newAccessToken != null) {
+        await updateToken(newAccessToken);
+      }
+
+      if (!mounted) return;
+
+      if (response.statusCode == 200) {
+        Fluttertoast.showToast(msg: 'Phản hồi đã được gửi thành công');
+        setState(() {
+          _isLoading = false;
+          _selectedImages.clear();
+          _responseController.clear();
+          _responseMessage = ''; // Reset lại message
+          _isLoading = true; // Đặt lại trạng thái tải lại
+          _getTicketDetail();
+        });
+      } else if (response.statusCode == 401) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          Navigator.push(
+            this.context,
+            MaterialPageRoute(
+              builder: (context) => Logout(controller: widget.controller),
+            ),
+          );
+        });
+      } else {
+        final responseJson = jsonDecode(response.body);
+        _getTicketStatus = responseJson['message'];
+        Fluttertoast.showToast(msg: _getTicketStatus);
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      Fluttertoast.showToast(msg: 'Lỗi gửi phản hồi: $e');
+    } finally {
+      setState(() {
+        _isResponseSending = false; // Đặt lại trạng thái tải lại
+      });
+    }
+  }
+
+  Future<void> _getTicketDetail() async {
+    String token = (await getToken()).toString();
+    String refreshToken = (await getRefreshToken()).toString();
+    String deviceId = (await getDeviceId()).toString();
+
+    if (!mounted) return; // Kiểm tra widget đã bị unmount hay chưa
+    final response = await http.get(
+      Uri.parse('${apiUrl}ticket/${widget.ticketId}'),
+      headers: <String, String>{
+        'Content-Type': 'application/json; charset=UTF-8',
+        'Cookie': 'DeviceId=$deviceId; RefreshToken=$refreshToken',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    String? newAccessToken = response.headers['new-access-token'];
+    if (newAccessToken != null) {
+      await updateToken(newAccessToken);
+    }
+
+    if (!mounted) return; // Kiểm tra lại widget trước khi setState
+
+    if (response.statusCode == 200) {
+      Map<String, dynamic> responseJson = jsonDecode(response.body);
+      Map<String, dynamic> data = responseJson['response']?['data'] ?? {};
+      _ticketDetail = TicketDetailModel.fromJson(data);
+
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    } else if (response.statusCode == 401) {
+      if (mounted) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          Navigator.push(
+            this.context,
+            MaterialPageRoute(
+              builder: (context) => Logout(controller: widget.controller),
+            ),
+          );
+        });
+      }
+    } else {
+      Map<String, dynamic> responseJson = jsonDecode(response.body);
+      _getTicketStatus = responseJson['message'];
+
+      if (mounted) {
+        Fluttertoast.showToast(
+          msg: _getTicketStatus,
+          toastLength: Toast.LENGTH_SHORT,
+          gravity: ToastGravity.BOTTOM,
+          timeInSecForIosWeb: 1,
+          textColor: Colors.black,
+          fontSize: 16.0,
+        );
+        setState(() {
+          _isLoading = false;
+        });
+
+        // WidgetsBinding.instance.addPostFrameCallback((_) {
+        //   if (mounted) {
+        //     Navigator.pop(context);
+        //   }
+        // });
+      }
+    }
+  }
+}
+
+class ImageViewScreen extends StatelessWidget {
+  final String imageUrl;
+
+  const ImageViewScreen({Key? key, required this.imageUrl}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(backgroundColor: Colors.transparent),
+      body: Center(child: InteractiveViewer(child: Image.network(imageUrl))),
+    );
   }
 }
