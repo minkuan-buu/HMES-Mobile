@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "87091571338",
+    "project_id": "meowwoofsocial-75790",
+    "storage_bucket": "meowwoofsocial-75790.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:87091571338:android:8fbf9517260af12ce91b73",
+        "android_client_info": {
+          "package_name": "com.example.hmes"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBn16dJzk-hfmdtB9LcMnOXaH99I57vuew"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
