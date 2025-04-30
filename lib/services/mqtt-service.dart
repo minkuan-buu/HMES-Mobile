@@ -6,6 +6,7 @@ import 'package:hmes/helper/sharedPreferencesHelper.dart';
 import 'package:mqtt_client/mqtt_client.dart';
 import 'package:mqtt_client/mqtt_server_client.dart';
 import 'package:flutter/foundation.dart';
+import 'package:hmes/services/notification_service.dart';
 
 class MqttService {
   static final MqttService _instance = MqttService._internal();
@@ -56,6 +57,7 @@ class MqttService {
       await _client!.connect();
       if (_client!.connectionStatus!.state == MqttConnectionState.connected) {
         debugPrint('MQTT Connected successfully');
+        debugPrint('MQTT Connected successfully+$userId');
         _subscribeToNotificationTopic(notificationTopic);
       } else {
         debugPrint('MQTT Connection Failed');
@@ -88,6 +90,13 @@ class MqttService {
           // Check if this is not a refresh response
           if (messages.last.topic == 'push/notification/$userId') {
             debugPrint('Received notification: $payload');
+
+            // Initialize notification service and show notification
+            _showNotification(
+              notificationData['title'] ?? 'New notification',
+              notificationData['message'] ?? '',
+            );
+
             onNewNotification?.call(payload);
           }
         } catch (e) {
@@ -100,6 +109,31 @@ class MqttService {
       debugPrint(
         'Client is not connected, cannot subscribe to notification topic.',
       );
+    }
+  }
+
+  // Helper method to show notifications
+  Future<void> _showNotification(String title, String message) async {
+    // Create a new instance and ensure initialization
+    final notificationService = NotificationService();
+
+    // Make sure notifications are initialized before showing
+    if (!notificationService.isInitialized) {
+      await notificationService.initNotification();
+    }
+
+    // Generate a unique ID based on time
+    final id = DateTime.now().millisecondsSinceEpoch.remainder(100000);
+
+    try {
+      await notificationService.showNotification(
+        id: id,
+        title: title,
+        body: message,
+      );
+      debugPrint('Local notification shown with ID: $id');
+    } catch (e) {
+      debugPrint('Error showing notification: $e');
     }
   }
 

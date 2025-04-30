@@ -6,7 +6,12 @@ import 'package:hmes/components/components.dart';
 import 'package:hmes/pages/profile.dart';
 import 'package:hmes/pages/register.dart';
 import 'package:hmes/helper/secureStorageHelper.dart';
+import 'package:hmes/pages/ticket.dart';
 import 'package:hmes/services/mqtt-service.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:hmes/helper/sharedPreferencesHelper.dart';
+import 'notification.dart';
+import 'dart:convert';
 
 class HomePage extends StatefulWidget {
   static String id = 'home_screen';
@@ -33,6 +38,11 @@ class _HomePageState extends State<HomePage> {
     _isLoggedIn = widget.isLoggedIn;
     _lastPressed = null; // Reset khi thoát ứng dụng
     _checkLoginStatus();
+    FirebaseMessaging.instance.getToken().then((token) {
+      print(
+        'FCM Token: $token',
+      ); // Token này gửi cho server để push notification
+    });
   }
 
   void _checkLoginStatus() async {
@@ -197,13 +207,17 @@ class _BottomNavigationBarExampleState
         physics: NeverScrollableScrollPhysics(),
         children: [
           DevicePage(controller: widget.controller),
-          Text("Thông báo", style: TextStyle(fontSize: 20)),
+          // Text("Thông báo", style: TextStyle(fontSize: 20)),
+          NotificationPage(controller: widget.controller),
+          Ticket(controller: widget.controller),
           ProfilePage(controller: widget.controller),
         ],
       ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
         onTap: _changeIndex,
+        unselectedItemColor: Colors.grey,
+        selectedItemColor: const Color(0xFF3F51B5),
         items: [
           const BottomNavigationBarItem(
             icon: Icon(Icons.devices),
@@ -230,6 +244,12 @@ class _BottomNavigationBarExampleState
             ),
             label: "Thông báo",
           ),
+
+          const BottomNavigationBarItem(
+            icon: Icon(Icons.support_agent),
+            label: "Hỗ trợ",
+          ),
+
           const BottomNavigationBarItem(
             icon: Icon(Icons.person),
             label: "Tài khoản",
