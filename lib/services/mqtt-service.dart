@@ -18,6 +18,7 @@ class MqttService {
   String? userId;
   MqttServerClient? _client;
   Function(String message)? onNewNotification; // Callback for new notifications
+  Function(String message)? onRefreshData;
 
   // Refresh management variables
   bool _isRefreshing = false;
@@ -178,7 +179,7 @@ class MqttService {
 
             // Check if this is a refresh response
             if (messages.last.topic == responseTopic) {
-              onNewNotification?.call(payload);
+              onRefreshData?.call(payload);
               debugPrint('Received refresh response: $payload');
               debugPrint('Refresh response received');
 
