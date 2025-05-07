@@ -100,10 +100,10 @@ class NotificationService {
     final notificationId = '${title}-${body}';
 
     // Check if we've already shown this notification recently
-    if (_processedNotificationIds.contains(notificationId)) {
-      debugPrint('Skipping duplicate notification: $notificationId');
-      return;
-    }
+    // if (_processedNotificationIds.contains(notificationId)) {
+    //   debugPrint('Skipping duplicate notification: $notificationId');
+    //   return;
+    // }
 
     // Rate limit notifications
     final now = DateTime.now();
@@ -222,6 +222,37 @@ class NotificationService {
     return response.statusCode == 200;
   }
 
+  // Decode Unicode escape sequences in JSON strings
+  String decodeUnicodeEscapes(String input) {
+    try {
+      // First decode the JSON string to handle \u0022 (double quote) escapes
+      final decoded = json.decode(input);
+
+      // If the input is already a Map, return it as JSON string
+      if (decoded is Map) {
+        return json.encode(decoded);
+      }
+
+      // For string inputs with nested Unicode escapes
+      if (decoded is String) {
+        // Try to parse if the string itself is a JSON
+        try {
+          final nestedJson = json.decode(decoded);
+          return json.encode(nestedJson);
+        } catch (_) {
+          // Not a valid JSON string, just return the decoded string
+          return decoded;
+        }
+      }
+
+      // Return the original decoded object as JSON
+      return json.encode(decoded);
+    } catch (e) {
+      debugPrint('Error decoding Unicode escapes: $e');
+      return input; // Return original if decoding fails
+    }
+  }
+
   // Process MQTT notification message
   Future<void> processMqttNotification(String message) async {
     if (!_isInitialized) {
@@ -229,20 +260,35 @@ class NotificationService {
     }
 
     try {
-      final Map<String, dynamic> notificationData = jsonDecode(message);
+      // Decode Unicode escapes before parsing
+      final decodedMessage = decodeUnicodeEscapes(message);
+      Map<String, dynamic> notificationData;
+
+      try {
+        // Try to parse the decoded message as JSON
+        notificationData = json.decode(decodedMessage);
+      } catch (e) {
+        // If decoding fails, the message might be a simple string
+        // In this case, create a default notification data structure
+        debugPrint('Failed to parse notification data as JSON: $e');
+        notificationData = {
+          'title': 'Thông báo mới',
+          'message': decodedMessage,
+        };
+      }
 
       // Extract notification details from the message
-      final String title = notificationData['title'] ?? 'New Notification';
+      final String title = notificationData['title'] ?? 'Thông báo mới';
       final String body = notificationData['message'] ?? '';
 
       // Create a simple ID for this notification - no need for timestamp for better deduplication
       final String notificationId = '$title-$body';
 
       // Skip if we've already processed this notification recently
-      if (_processedNotificationIds.contains(notificationId)) {
-        debugPrint('Skipping duplicate MQTT notification: $notificationId');
-        return;
-      }
+      // if (_processedNotificationIds.contains(notificationId)) {
+      //   debugPrint('Skipping duplicate MQTT notification: $notificationId');
+      //   return;
+      // }
 
       // Rate limit notifications
       final now = DateTime.now();
@@ -268,7 +314,7 @@ class NotificationService {
         id: DateTime.now().millisecondsSinceEpoch.remainder(100000),
         title: title,
         body: body,
-        payload: message,
+        payload: decodedMessage,
       );
 
       debugPrint('MQTT notification processed: $title');

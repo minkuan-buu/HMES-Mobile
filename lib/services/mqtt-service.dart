@@ -191,45 +191,97 @@ class MqttService {
         );
 
         try {
-          final Map<String, dynamic> notificationData = jsonDecode(payload);
-
-          // Create a unique message ID based on content to avoid duplicates
-          final String messageId = _generateMessageId(notificationData);
-
-          // Check if this message should be processed
-          if (messages.last.topic == 'push/notification/$userId' &&
-              !_isDuplicateMessage(messageId) &&
-              !_isStartupMessage()) {
-            debugPrint('Received notification: $payload (ID: $messageId)');
-
-            // Remember that we've processed this message
-            _addProcessedMessageId(messageId);
-
-            // First, show the notification
-            _showNotification(
-              notificationData['title'] ?? 'New notification',
-              notificationData['message'] ?? '',
+          // Check if payload contains Unicode escapes for message field
+          if (payload.contains('\\u') && payload.contains('message')) {
+            // Use the notification service's decode function
+            final notificationService = NotificationService();
+            final decodedPayload = notificationService.decodeUnicodeEscapes(
+              payload,
+            );
+            final Map<String, dynamic> notificationData = jsonDecode(
+              decodedPayload,
             );
 
-            // Then inform any UI components that are listening for updates
-            // but don't let them show another notification
-            if (onNewNotification != null) {
-              onNewNotification!(payload);
-            }
-          } else if (_isStartupMessage()) {
-            debugPrint(
-              'Skipping startup message: $messageId (startup grace period)',
-            );
+            // Create a unique message ID based on content to avoid duplicates
+            final String messageId = _generateMessageId(notificationData);
 
-            // Still update the UI to show any retained messages, but don't show notification
-            if (onNewNotification != null) {
-              onNewNotification!(payload);
-            }
+            // Check if this message should be processed
+            if (messages.last.topic == 'push/notification/$userId' &&
+                !_isDuplicateMessage(messageId) &&
+                !_isStartupMessage()) {
+              debugPrint(
+                'Received notification: $decodedPayload (ID: $messageId)',
+              );
 
-            // Still track it to avoid showing it again
-            _addProcessedMessageId(messageId);
+              // Remember that we've processed this message
+              _addProcessedMessageId(messageId);
+
+              // First, show the notification
+              _showNotification(
+                notificationData['title'] ?? 'Thông báo mới',
+                notificationData['message'] ?? '',
+              );
+
+              // Then inform any UI components that are listening for updates
+              if (onNewNotification != null) {
+                onNewNotification!(decodedPayload);
+              }
+            } else if (_isStartupMessage()) {
+              debugPrint(
+                'Skipping startup message: $messageId (startup grace period)',
+              );
+
+              // Still update the UI to show any retained messages, but don't show notification
+              if (onNewNotification != null) {
+                onNewNotification!(decodedPayload);
+              }
+
+              // Still track it to avoid showing it again
+              _addProcessedMessageId(messageId);
+            } else {
+              debugPrint('Skipping duplicate message with ID: $messageId');
+            }
           } else {
-            debugPrint('Skipping duplicate message with ID: $messageId');
+            // Original handling for standard JSON payloads
+            final Map<String, dynamic> notificationData = jsonDecode(payload);
+
+            // Create a unique message ID based on content to avoid duplicates
+            final String messageId = _generateMessageId(notificationData);
+
+            // Check if this message should be processed
+            if (messages.last.topic == 'push/notification/$userId' &&
+                !_isDuplicateMessage(messageId) &&
+                !_isStartupMessage()) {
+              debugPrint('Received notification: $payload (ID: $messageId)');
+
+              // Remember that we've processed this message
+              _addProcessedMessageId(messageId);
+
+              // First, show the notification
+              _showNotification(
+                notificationData['title'] ?? 'Thông báo mới',
+                notificationData['message'] ?? '',
+              );
+
+              // Then inform any UI components that are listening for updates
+              if (onNewNotification != null) {
+                onNewNotification!(payload);
+              }
+            } else if (_isStartupMessage()) {
+              debugPrint(
+                'Skipping startup message: $messageId (startup grace period)',
+              );
+
+              // Still update the UI to show any retained messages, but don't show notification
+              if (onNewNotification != null) {
+                onNewNotification!(payload);
+              }
+
+              // Still track it to avoid showing it again
+              _addProcessedMessageId(messageId);
+            } else {
+              debugPrint('Skipping duplicate message with ID: $messageId');
+            }
           }
         } catch (e) {
           debugPrint('Error parsing notification: $e');

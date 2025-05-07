@@ -158,16 +158,16 @@ class MqttTaskHandler extends TaskHandler {
 
         // Update notification to show connected status
         await FlutterForegroundTask.updateService(
-          notificationTitle: 'HMES MQTT Service - Connected',
-          notificationText: 'Receiving notifications in background',
+          notificationTitle: 'HMES dịch vụ thông báo - Đã kết nối',
+          notificationText: 'Nhận thông báo trong nền',
         );
       } else {
         debugPrint('MqttTaskHandler: Failed to connect to MQTT');
 
         // Update notification to show connection error
         await FlutterForegroundTask.updateService(
-          notificationTitle: 'HMES MQTT Service - Connecting',
-          notificationText: 'Attempting to reconnect...',
+          notificationTitle: 'HMES dịch vụ thông báo - Đang kết nối',
+          notificationText: 'Đang thử kết nối lại...',
         );
 
         _scheduleReconnect();
@@ -178,8 +178,8 @@ class MqttTaskHandler extends TaskHandler {
 
       // Update notification to show connection error
       await FlutterForegroundTask.updateService(
-        notificationTitle: 'HMES MQTT Service - Error',
-        notificationText: 'Connection error, retrying...',
+        notificationTitle: 'HMES dịch vụ thông báo - Lỗi kết nối',
+        notificationText: 'Lỗi kết nối, thử lại...',
       );
 
       _scheduleReconnect();
@@ -290,8 +290,8 @@ class MqttTaskHandler extends TaskHandler {
           'MqttTaskHandler: Failsafe timer triggered, restarting service',
         );
         await FlutterForegroundTask.startService(
-          notificationTitle: 'HMES MQTT Service - Resuming',
-          notificationText: 'Reconnecting MQTT service',
+          notificationTitle: 'HMES dịch vụ thông báo - Tiếp tục',
+          notificationText: 'Tiếp tục nhận thông báo',
           callback: startCallback,
         );
       }
@@ -332,8 +332,8 @@ class MqttTaskHandler extends TaskHandler {
         // Update notification to show active status
         try {
           FlutterForegroundTask.updateService(
-            notificationTitle: 'HMES MQTT Service - Active',
-            notificationText: 'Connected and receiving notifications',
+            notificationTitle: 'HMES dịch vụ thông báo - Đang hoạt động',
+            notificationText: 'Đã kết nối và nhận thông báo',
           );
         } catch (e) {
           debugPrint('MqttTaskHandler: Error updating notification: $e');
@@ -368,8 +368,8 @@ class MqttTaskHandler extends TaskHandler {
             );
             // Restart the foreground service
             final result = await FlutterForegroundTask.startService(
-              notificationTitle: 'HMES MQTT Service - Restarting',
-              notificationText: 'Reconnecting MQTT service',
+              notificationTitle: 'HMES dịch vụ thông báo - Tiếp tục',
+              notificationText: 'Tiếp tục nhận thông báo',
               callback: startCallback,
             );
             debugPrint('MqttTaskHandler: Service restart result: $result');
@@ -383,8 +383,8 @@ class MqttTaskHandler extends TaskHandler {
                   'MqttTaskHandler: Service failed to restart, trying again',
                 );
                 await FlutterForegroundTask.startService(
-                  notificationTitle: 'HMES MQTT Service - Restarting',
-                  notificationText: 'Reconnecting MQTT service',
+                  notificationTitle: 'HMES dịch vụ thông báo - Tiếp tục',
+                  notificationText: 'Tiếp tục nhận thông báo',
                   callback: startCallback,
                 );
               }
@@ -593,8 +593,8 @@ class ForegroundServiceHelper {
 
       // Start the foreground service
       final result = await FlutterForegroundTask.startService(
-        notificationTitle: 'HMES MQTT Service',
-        notificationText: 'Running in background to receive notifications',
+        notificationTitle: 'HMES dịch vụ thông báo',
+        notificationText: 'Chạy trong nền để nhận thông báo',
         callback: startCallback,
       );
 
@@ -609,8 +609,8 @@ class ForegroundServiceHelper {
       if (!isRunning && result) {
         debugPrint('Service reported success but not running, retrying...');
         final retryResult = await FlutterForegroundTask.startService(
-          notificationTitle: 'HMES MQTT Service',
-          notificationText: 'Running in background to receive notifications',
+          notificationTitle: 'HMES dịch vụ thông báo',
+          notificationText: 'Chạy trong nền để nhận thông báo',
           callback: startCallback,
         );
         debugPrint('Service retry result: $retryResult');
