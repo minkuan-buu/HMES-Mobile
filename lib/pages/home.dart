@@ -10,6 +10,7 @@ import 'package:hmes/pages/ticket.dart';
 import 'package:hmes/services/mqtt-service.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:hmes/helper/sharedPreferencesHelper.dart';
+import 'package:hmes/services/foreground_service.dart';
 import 'notification.dart';
 import 'dart:convert';
 
@@ -43,6 +44,35 @@ class _HomePageState extends State<HomePage> {
         'FCM Token: $token',
       ); // Token này gửi cho server để push notification
     });
+
+    // No need to start the foreground service here since we're using WillStartForegroundTask
+    // which handles it automatically
+  }
+
+  // Start the MQTT foreground service only when needed (e.g., after login)
+  Future<void> _startMqttForegroundService() async {
+    try {
+      // Check if already running to avoid duplicate services
+      bool isRunning = await ForegroundServiceHelper.isServiceRunning();
+      if (!isRunning) {
+        print('Starting MQTT foreground service from HomePage...');
+        await ForegroundServiceHelper.startForegroundService();
+      } else {
+        print('MQTT foreground service already running');
+      }
+    } catch (e) {
+      print('Error starting MQTT foreground service: $e');
+    }
+  }
+
+  // Stop the MQTT foreground service
+  Future<void> _stopMqttForegroundService() async {
+    try {
+      print('Stopping MQTT foreground service...');
+      await ForegroundServiceHelper.stopForegroundService();
+    } catch (e) {
+      print('Error stopping MQTT foreground service: $e');
+    }
   }
 
   void _checkLoginStatus() async {
@@ -52,9 +82,26 @@ class _HomePageState extends State<HomePage> {
     bool isLoggedIn =
         token.isNotEmpty && refreshToken.isNotEmpty && deviceId.isNotEmpty;
 
+    bool previousLoginState = _isLoggedIn;
     setState(() {
       _isLoggedIn = isLoggedIn;
     });
+
+    // Only handle service state changes when login status changes
+    if (isLoggedIn != previousLoginState) {
+      // Give UI time to update before handling service
+      Future.delayed(Duration(milliseconds: 500), () {
+        if (isLoggedIn && !previousLoginState) {
+          // User just logged in, service should be started by WillStartForegroundTask
+          print(
+            'Login detected, service should be handled by WillStartForegroundTask',
+          );
+        } else if (!isLoggedIn && previousLoginState) {
+          // User just logged out, stop the service
+          _stopMqttForegroundService();
+        }
+      });
+    }
   }
 
   @override
@@ -172,12 +219,22 @@ class _BottomNavigationBarExampleState
   late MqttService mqttService; // Khai báo mqttService theo kiểu instance
   String message = 'Chưa nhận thông báo';
 
+  // Set to track already processed notification IDs
+  final Set<String> _processedNotificationIds = {};
+
   @override
   void initState() {
     super.initState();
-    mqttService = MqttService(); // Sử dụng singleton MqttService
+    // Get the singleton instance but DON'T connect - foreground service will handle this
+    mqttService = MqttService();
+
+    // Only set up the callback to update the UI when notifications arrive
     mqttService.onNewNotification = (message) => onNewNotification(message);
-    mqttService.connect(); // Kết nối MQTT
+
+    // We no longer call mqttService.connect() here as the foreground service handles this
+    debugPrint(
+      'Home UI initialized, using MQTT connection from foreground service',
+    );
   }
 
   void _changeIndex(int index) {
@@ -192,11 +249,26 @@ class _BottomNavigationBarExampleState
 
   // Hàm cập nhật khi có thông báo mới
   void onNewNotification(String message) {
-    setState(() {
-      this.message = message; // Cập nhật thông báo mới
-      hasNewNotification = true; // Đánh dấu có thông báo mới
-    });
-    debugPrint('Nhận thông báo mới: $message');
+    try {
+      // Parse the message to get notification details
+      final Map<String, dynamic> notificationData = jsonDecode(message);
+
+      // Generate a unique ID for this notification to avoid duplicates
+      final String title = notificationData['title'] ?? '';
+      final String body = notificationData['message'] ?? '';
+      final String notificationId =
+          '$title-$body-${DateTime.now().millisecondsSinceEpoch}';
+
+      // Only update UI, don't show another notification since MqttService already shows one
+      setState(() {
+        this.message = message; // Cập nhật thông báo mới
+        hasNewNotification = true; // Đánh dấu có thông báo mới
+      });
+
+      debugPrint('UI updated for notification: $title');
+    } catch (e) {
+      debugPrint('Error processing notification for UI update: $e');
+    }
   }
 
   @override

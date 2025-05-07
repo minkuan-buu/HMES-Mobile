@@ -3,6 +3,8 @@ import 'package:fluttertoast/fluttertoast.dart';
 import 'package:hmes/context/baseAPI_URL.dart';
 import 'package:hmes/helper/secureStorageHelper.dart';
 import 'package:hmes/pages/home.dart';
+import 'package:hmes/services/foreground_service.dart';
+import 'package:hmes/services/mqtt-service.dart';
 import 'package:http/http.dart' as http;
 
 class Logout extends StatefulWidget {
@@ -23,6 +25,10 @@ class _LogoutState extends State<Logout> {
   }
 
   Future<void> _logout() async {
+    // Stop the foreground service and MQTT connection
+    await ForegroundServiceHelper.stopForegroundService();
+    MqttService().disconnect();
+
     String token = (await getToken()).toString();
     String refreshToken = (await getRefreshToken()).toString();
     String deviceId = (await getDeviceId()).toString();
