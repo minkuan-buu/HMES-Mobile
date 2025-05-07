@@ -24,48 +24,152 @@ class MqttService {
   StreamSubscription? _notificationSubscription;
   StreamSubscription? _refreshSubscription;
 
+  // Connection status and tracking
+  bool _isConnected = false;
+  int _reconnectAttempts = 0;
+  static const int _maxReconnectAttempts = 5;
+  Timer? _reconnectTimer;
+
+  // Track processed messages to prevent duplicates
+  final Set<String> _processedMessageIds = {};
+  static const int _maxProcessedIds =
+      100; // Limit how many we track to avoid memory issues
+
+  // Flag to handle startup state
+  bool _isInitialConnection = true;
+  DateTime _startupTime = DateTime.now();
+  static const int _startupGracePeriodMs =
+      5000; // 5 seconds grace period on startup
+
+  // Track connection source to avoid duplicates
+  String? _connectionSource;
+  DateTime? _lastConnectionAttempt;
+  static const int _minConnectionIntervalMs =
+      2000; // Minimum 2s between connection attempts
+
   // Private constructor to ensure a single instance
   MqttService._internal();
 
+  // Getter for connection status
+  bool get isConnected => _isConnected;
+
   // Connect to MQTT broker
-  Future<void> connect() async {
+  Future<bool> connect({String source = 'unknown'}) async {
+    // Track connection source and rate limit connection attempts
+    final now = DateTime.now();
+    if (_lastConnectionAttempt != null) {
+      final timeSinceLastAttempt = now.difference(_lastConnectionAttempt!);
+      if (timeSinceLastAttempt.inMilliseconds < _minConnectionIntervalMs) {
+        debugPrint(
+          'Rate limiting connection attempt from $source, too soon after previous attempt',
+        );
+        // If already connected, return success
+        if (_isConnected &&
+            _client != null &&
+            _client!.connectionStatus!.state == MqttConnectionState.connected) {
+          return true;
+        }
+        // Otherwise wait a bit and retry
+        await Future.delayed(Duration(milliseconds: _minConnectionIntervalMs));
+      }
+    }
+    _lastConnectionAttempt = now;
+
+    // Log connection source
+    if (_connectionSource == null) {
+      _connectionSource = source;
+      debugPrint('First connection attempt from: $source');
+    } else if (_connectionSource != source) {
+      debugPrint(
+        'WARNING: Connection attempt from $source, but already connected from $_connectionSource',
+      );
+    }
+
+    // Reset startup time on each new connection attempt
+    if (_isInitialConnection) {
+      _startupTime = DateTime.now();
+      debugPrint('Initial connection attempt, setting startup time');
+    }
+
     userId = await getTempKey('userId');
     clientId = (await getDeviceId()) ?? '';
 
     if (clientId.isEmpty || userId == null) {
       debugPrint('Client ID or User ID is empty, cannot connect to MQTT.');
-      return;
+      return false;
     }
 
     final String notificationTopic = 'push/notification/$userId';
     final String refreshTopic = 'esp32/refresh/$userId';
 
-    _client = MqttServerClient(broker, clientId);
+    // Cleanup any existing connection before creating a new one
+    if (_client != null) {
+      try {
+        _client!.disconnect();
+      } catch (e) {
+        // Ignore disconnect errors
+      }
+
+      // Cancel any existing subscriptions to prevent duplicates
+      _notificationSubscription?.cancel();
+      _refreshSubscription?.cancel();
+    }
+
+    // Create a new client with a unique ID (timestamp) to avoid connection conflicts
+    final uniqueId = '$clientId-${DateTime.now().millisecondsSinceEpoch}';
+    debugPrint('Creating MQTT client with ID: $uniqueId');
+    _client = MqttServerClient(broker, uniqueId);
+
+    // Configure client for better reliability
     _client!.port = port;
     _client!.logging(on: false);
-    _client!.keepAlivePeriod = 20;
+    _client!.keepAlivePeriod =
+        60; // 60 seconds keepalive for better background operation
+    _client!.autoReconnect = true; // Enable auto reconnect feature
+    _client!.onAutoReconnect = onAutoReconnect;
     _client!.onDisconnected = onDisconnected;
     _client!.onConnected = onConnected;
+    _client!.onSubscribed = onSubscribed;
+    _client!.connectTimeoutPeriod = 5000; // 5 seconds connection timeout
 
+    // Configure connection message with clean session and persistence
     final connMessage = MqttConnectMessage()
-        .withClientIdentifier(clientId)
-        .startClean()
-        .withWillQos(MqttQos.atLeastOnce);
+        .withClientIdentifier(uniqueId)
+        .startClean() // Use clean session
+        .withWillQos(MqttQos.atLeastOnce)
+        .withWillRetain() // Retain will message
+        .withWillTopic('clients/disconnected')
+        .withWillMessage('$uniqueId disconnected')
+        .authenticateAs(null, null); // No authentication
+
     _client!.connectionMessage = connMessage;
 
     try {
+      debugPrint('Connecting to MQTT broker: $broker:$port...');
       await _client!.connect();
+
       if (_client!.connectionStatus!.state == MqttConnectionState.connected) {
         debugPrint('MQTT Connected successfully');
         debugPrint('MQTT Connected successfully+$userId');
+        _isConnected = true;
+        _reconnectAttempts = 0; // Reset reconnect attempts
+
+        // Subscribe to notification topic with QoS 1 for better delivery guarantee
         _subscribeToNotificationTopic(notificationTopic);
+        return true;
       } else {
-        debugPrint('MQTT Connection Failed');
+        debugPrint(
+          'MQTT Connection Failed - Status: ${_client!.connectionStatus!.state}',
+        );
+        _isConnected = false;
         _attemptReconnect();
+        return false;
       }
     } catch (e) {
       debugPrint('MQTT Connection Error: $e');
+      _isConnected = false;
       _attemptReconnect();
+      return false;
     }
   }
 
@@ -76,6 +180,9 @@ class MqttService {
         _client!.connectionStatus!.state == MqttConnectionState.connected) {
       _client!.subscribe(topic, MqttQos.atLeastOnce);
 
+      // Cancel any existing subscription before creating a new one
+      _notificationSubscription?.cancel();
+
       _notificationSubscription = _client!.updates?.listen((messages) {
         final MqttPublishMessage recMessage =
             messages[0].payload as MqttPublishMessage;
@@ -83,33 +190,97 @@ class MqttService {
           recMessage.payload.message,
         );
 
-        // Only process notification if not in refresh state
-        // if (!_isRefreshing) {
         try {
           final Map<String, dynamic> notificationData = jsonDecode(payload);
-          // Check if this is not a refresh response
-          if (messages.last.topic == 'push/notification/$userId') {
-            debugPrint('Received notification: $payload');
 
-            // Initialize notification service and show notification
+          // Create a unique message ID based on content to avoid duplicates
+          final String messageId = _generateMessageId(notificationData);
+
+          // Check if this message should be processed
+          if (messages.last.topic == 'push/notification/$userId' &&
+              !_isDuplicateMessage(messageId) &&
+              !_isStartupMessage()) {
+            debugPrint('Received notification: $payload (ID: $messageId)');
+
+            // Remember that we've processed this message
+            _addProcessedMessageId(messageId);
+
+            // First, show the notification
             _showNotification(
               notificationData['title'] ?? 'New notification',
               notificationData['message'] ?? '',
             );
 
-            onNewNotification?.call(payload);
+            // Then inform any UI components that are listening for updates
+            // but don't let them show another notification
+            if (onNewNotification != null) {
+              onNewNotification!(payload);
+            }
+          } else if (_isStartupMessage()) {
+            debugPrint(
+              'Skipping startup message: $messageId (startup grace period)',
+            );
+
+            // Still update the UI to show any retained messages, but don't show notification
+            if (onNewNotification != null) {
+              onNewNotification!(payload);
+            }
+
+            // Still track it to avoid showing it again
+            _addProcessedMessageId(messageId);
+          } else {
+            debugPrint('Skipping duplicate message with ID: $messageId');
           }
         } catch (e) {
           debugPrint('Error parsing notification: $e');
-          //onNewNotification?.call();
         }
-        // }
+      });
+
+      // After first successful connection, clear the initial connection flag
+      Future.delayed(Duration(milliseconds: _startupGracePeriodMs), () {
+        if (_isInitialConnection) {
+          debugPrint(
+            'Startup grace period ended, processing new notifications normally',
+          );
+          _isInitialConnection = false;
+        }
       });
     } else {
       debugPrint(
         'Client is not connected, cannot subscribe to notification topic.',
       );
     }
+  }
+
+  // Generate a message ID based on content to detect duplicates
+  String _generateMessageId(Map<String, dynamic> notificationData) {
+    final title = notificationData['title'] ?? '';
+    final message = notificationData['message'] ?? '';
+    final timestamp = DateTime.now().millisecondsSinceEpoch.toString();
+    return '$title-$message-$timestamp';
+  }
+
+  // Check if a message is a duplicate we've already processed
+  bool _isDuplicateMessage(String messageId) {
+    return _processedMessageIds.contains(messageId);
+  }
+
+  // Add a message ID to our tracking set, maintaining max size
+  void _addProcessedMessageId(String messageId) {
+    _processedMessageIds.add(messageId);
+
+    // If we've exceeded our max size, remove the oldest messages
+    if (_processedMessageIds.length > _maxProcessedIds) {
+      final toRemove = _processedMessageIds.length - _maxProcessedIds;
+      _processedMessageIds.toList().sublist(0, toRemove).forEach((id) {
+        _processedMessageIds.remove(id);
+      });
+    }
+  }
+
+  // Called when successfully subscribed to a topic
+  void onSubscribed(String topic) {
+    debugPrint('Subscribed to topic: $topic');
   }
 
   // Helper method to show notifications
@@ -208,12 +379,12 @@ class MqttService {
         });
       } else {
         debugPrint('MQTT Client is not connected. Attempting to reconnect...');
-        _attemptReconnect();
+        await connect(); // Try immediate reconnect
         completer.completeError('Not connected');
       }
     } catch (e) {
       debugPrint('Error sending refresh signal: $e');
-      _attemptReconnect();
+      await connect(); // Try immediate reconnect
       completer.completeError(e);
     } finally {
       // Ensure refresh state is reset
@@ -223,15 +394,34 @@ class MqttService {
     }
   }
 
-  // Attempt to reconnect to MQTT broker
+  // Attempt to reconnect to MQTT broker with exponential backoff
   void _attemptReconnect() {
-    Future.delayed(Duration(seconds: 5), () async {
-      if (_client == null ||
-          _client!.connectionStatus!.state != MqttConnectionState.connected) {
-        debugPrint('Attempting to reconnect to MQTT Broker...');
+    // Cancel any existing reconnect timer
+    _reconnectTimer?.cancel();
+
+    // Only attempt reconnect if not connected and within max attempts
+    if (!_isConnected && _reconnectAttempts < _maxReconnectAttempts) {
+      _reconnectAttempts++;
+
+      // Exponential backoff for reconnect attempts (max 60 seconds)
+      final int delaySeconds = _reconnectAttempts * 5;
+      debugPrint('Scheduling reconnect attempt $delaySeconds seconds from now');
+
+      _reconnectTimer = Timer(Duration(seconds: delaySeconds), () async {
+        debugPrint(
+          'Attempting to reconnect to MQTT Broker (attempt $_reconnectAttempts)...',
+        );
         await connect();
-      }
-    });
+      });
+    } else if (_reconnectAttempts >= _maxReconnectAttempts) {
+      debugPrint('Max reconnect attempts reached. Will try again later.');
+      // Reset for future attempts but with a longer delay
+      _reconnectAttempts = 0;
+      _reconnectTimer = Timer(Duration(minutes: 5), () async {
+        debugPrint('Retrying MQTT connection after cooldown...');
+        await connect();
+      });
+    }
   }
 
   // Disconnect from MQTT broker
@@ -239,19 +429,67 @@ class MqttService {
     // Cancel any active subscriptions
     _notificationSubscription?.cancel();
     _refreshSubscription?.cancel();
+    _reconnectTimer?.cancel();
 
     // Disconnect the client
-    _client?.disconnect();
+    if (_client != null && _isConnected) {
+      try {
+        debugPrint('MQTT Disconnecting (initiated by $_connectionSource)');
+        _client!.disconnect();
+      } catch (e) {
+        debugPrint('Error during MQTT disconnect: $e');
+      }
+    }
+
+    // Clear connection tracking
+    _isConnected = false;
+    _connectionSource = null;
+
+    debugPrint('MQTT Disconnected manually');
+  }
+
+  // Called when auto-reconnect is triggered
+  void onAutoReconnect() {
+    debugPrint('MQTT auto-reconnect triggered');
+    _isConnected = false;
   }
 
   // Callback when connected to MQTT broker
   void onConnected() {
+    _isConnected = true;
+    _reconnectAttempts = 0; // Reset reconnect attempts on successful connection
+
+    // If this is the initial app connection, log it
+    if (_isInitialConnection) {
+      debugPrint(
+        'Initial MQTT connection established by $_connectionSource, may skip notifications for ${_startupGracePeriodMs}ms',
+      );
+    } else {
+      debugPrint('Reconnected to MQTT Broker by $_connectionSource');
+    }
+
     debugPrint('Connected to MQTT Broker');
   }
 
   // Callback when disconnected from MQTT broker
   void onDisconnected() {
-    debugPrint('Disconnected from MQTT Broker');
-    _attemptReconnect();
+    _isConnected = false;
+    debugPrint(
+      'Disconnected from MQTT Broker (was connected by $_connectionSource)',
+    );
+
+    // Only attempt manual reconnect if auto-reconnect fails or isn't configured
+    if (!_client!.autoReconnect) {
+      _attemptReconnect();
+    }
+  }
+
+  // Check if this is a message received during startup
+  bool _isStartupMessage() {
+    if (!_isInitialConnection) return false;
+
+    final now = DateTime.now();
+    final timeSinceStartup = now.difference(_startupTime);
+    return timeSinceStartup.inMilliseconds < _startupGracePeriodMs;
   }
 }
