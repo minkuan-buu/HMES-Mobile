@@ -284,7 +284,7 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
   void initState() {
     super.initState();
     _getDeviceDetails();
-  []
+  }
 
   String formatDate(DateTime dateTime) {
     return DateFormat('dd/MM/yyyy').format(dateTime);
