@@ -86,16 +86,9 @@ class _DevicePageState extends State<DevicePage> {
                           final device = _device[index];
                           return InkWell(
                             onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder:
-                                      (context) => DeviceDetailScreen(
-                                        deviceId: device.getId(),
-                                        deviceName: device.getName(),
-                                        controller: widget.controller,
-                                      ),
-                                ),
+                              _goToDeviceDetail(
+                                device.getId(),
+                                device.getName(),
                               );
                             },
                             child: Column(
@@ -169,6 +162,28 @@ class _DevicePageState extends State<DevicePage> {
         child: const Icon(Icons.add),
       ),
     );
+  }
+
+  void _goToDeviceDetail(String deviceId, String deviceName) async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder:
+            (context) => DeviceDetailScreen(
+              deviceId: deviceId,
+              deviceName: deviceName,
+              controller: widget.controller,
+            ),
+      ),
+    );
+
+    if (result == true) {
+      setState(() {
+        _isLoading = true; // Đặt trạng thái tải lại
+      });
+      // Reload lại dữ liệu khi quay về
+      _getDevices();
+    }
   }
 
   Future<void> _getDevices() async {
@@ -258,7 +273,7 @@ class DeviceDetailScreen extends StatefulWidget {
 }
 
 class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
-  bool _isButtonRefresh = true;
+  bool _isButtonRefreshing = false;
   bool _isLoading = true;
   String _getDeviceStatus = '';
   bool hasNewData = false;
@@ -269,7 +284,7 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
   void initState() {
     super.initState();
     _getDeviceDetails();
-  }
+  []
 
   String formatDate(DateTime dateTime) {
     return DateFormat('dd/MM/yyyy').format(dateTime);
@@ -295,7 +310,7 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () {
-            Navigator.pop(context);
+            Navigator.pop(context, true);
           },
         ),
       ),
@@ -714,7 +729,9 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
                                   width: screenWidth * 0.45,
                                   height: screenHeight * 0.055,
                                   child: ElevatedButton(
-                                    onPressed: () async {},
+                                    onPressed: () async {
+                                      _goToChoosePlant();
+                                    },
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: const Color(0xFF9F7BFF),
                                       shape: RoundedRectangleBorder(
@@ -736,17 +753,23 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
                                   height: screenHeight * 0.055,
                                   child: ElevatedButton(
                                     onPressed:
-                                        _isButtonRefresh
+                                        (_deviceItem?.isOnline == true &&
+                                                !_isButtonRefreshing)
                                             ? () async {
-                                              // Vô hiệu hóa nút khi nhấn
                                               setState(() {
-                                                _isButtonRefresh = false;
+                                                _isButtonRefreshing = true;
                                               });
 
                                               final mqttService = MqttService();
-                                              mqttService.onRefreshData =
-                                                  (message) =>
-                                                      refreshData(message);
+                                              mqttService.onRefreshData = (
+                                                message,
+                                              ) {
+                                                refreshData(message);
+                                                setState(() {
+                                                  _isButtonRefreshing =
+                                                      false; // Kết thúc refresh
+                                                });
+                                              };
 
                                               mqttService.sendRefreshSignal(
                                                 _deviceItem?.deviceItemId
@@ -754,7 +777,7 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
                                                     '',
                                               );
                                             }
-                                            : null, // Nếu nút bị vô hiệu hóa, onPressed sẽ là null (không làm gì)
+                                            : null, // disable nếu offline hoặc đang refresh
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: const Color(0xFF9F7BFF),
                                       shape: RoundedRectangleBorder(
@@ -762,21 +785,21 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
                                       ),
                                     ),
                                     child:
-                                        _isButtonRefresh
-                                            ? Text(
-                                              'Cập nhật dữ liệu',
-                                              style: TextStyle(
-                                                color: Colors.white,
-                                                fontSize: 15,
-                                                fontWeight: FontWeight.w500,
-                                              ),
-                                            )
-                                            : SizedBox(
+                                        _isButtonRefreshing
+                                            ? SizedBox(
                                               width: screenWidth * 0.05,
                                               height: screenWidth * 0.05,
                                               child: CircularProgressIndicator(
                                                 color: Colors.white,
                                                 strokeWidth: 2,
+                                              ),
+                                            )
+                                            : Text(
+                                              'Cập nhật dữ liệu',
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 15,
+                                                fontWeight: FontWeight.w500,
                                               ),
                                             ),
                                   ),
@@ -860,7 +883,7 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
   Future<void> refreshData(String message) async {
     // Sau khi hoàn thành việc xử lý dữ liệu, bật lại nút
     setState(() {
-      _isButtonRefresh = true;
+      _isButtonRefreshing = true;
     });
     if (message == '') {
       Fluttertoast.showToast(
@@ -965,6 +988,24 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
     }
     // Thực hiện các thao tác khác với message nếu cần.
     debugPrint("Dữ liệu đã được cập nhật: $message");
+  }
+
+  void _goToChoosePlant() async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder:
+            (context) => ChoosePlant(
+              controller: widget.controller,
+              deviceId: widget.deviceId,
+            ),
+      ),
+    );
+
+    if (result == true) {
+      // Reload lại dữ liệu khi quay về
+      _getDeviceDetails();
+    }
   }
 
   Future<void> _getDeviceDetails() async {
@@ -1086,6 +1127,267 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
       if (mounted) {
         Fluttertoast.showToast(
           msg: _getDeviceStatus,
+          toastLength: Toast.LENGTH_SHORT,
+          gravity: ToastGravity.BOTTOM,
+          timeInSecForIosWeb: 1,
+          textColor: Colors.black,
+          fontSize: 16.0,
+        );
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            Navigator.pop(context);
+          }
+        });
+      }
+    }
+  }
+}
+
+class ChoosePlant extends StatefulWidget {
+  const ChoosePlant({
+    super.key,
+    required this.controller,
+    required this.deviceId,
+  });
+  final PageController controller;
+  final String deviceId; // Thay thế bằng ID thiết bị thực tế
+
+  @override
+  State<ChoosePlant> createState() => _ChoosePlantState();
+}
+
+class _ChoosePlantState extends State<ChoosePlant> {
+  List<PlantModel>? _listPlant = [];
+  bool _isLoading = true;
+  String _getListPlantStatus = '';
+
+  @override
+  void initState() {
+    // TODO: implement initState
+    super.initState();
+    _getListPlant();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    double screenWidth = MediaQuery.of(context).size.width;
+    double screenHeight = MediaQuery.of(context).size.height;
+    return Scaffold(
+      appBar: AppBar(
+        title: Text("Chọn cây trồng"),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            Navigator.pop(context);
+          },
+        ),
+      ),
+      body: Column(
+        children: [
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: () async {
+                setState(() {
+                  _isLoading = true;
+                });
+                await _getListPlant();
+                setState(() {
+                  _isLoading = false;
+                });
+              },
+              child:
+                  _isLoading
+                      ? const Center(child: CircularProgressIndicator())
+                      : _listPlant != null
+                      ? Column(
+                        children: [
+                          Container(
+                            margin: EdgeInsets.symmetric(
+                              horizontal: screenWidth * 0.04, // Thay vì 15
+                              vertical: screenHeight * 0.025,
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'Danh sách cây trồng',
+                                  style: TextStyle(
+                                    fontSize: screenWidth * 0.045,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.black,
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.refresh),
+                                  onPressed: () {
+                                    setState(() {
+                                      _isLoading = true;
+                                    });
+                                    _getListPlant();
+                                  },
+                                ),
+                              ],
+                            ),
+                          ),
+                          Expanded(
+                            child: ListView.builder(
+                              itemCount: _listPlant?.length ?? 0,
+                              itemBuilder: (context, index) {
+                                return ListTile(
+                                  title: Text(_listPlant![index].name),
+                                  onTap: () {
+                                    // Xử lý khi người dùng chọn cây trồng
+                                    _handleChoosePlant(_listPlant![index].id);
+                                  },
+                                );
+                              },
+                            ),
+                          ),
+                        ],
+                      )
+                      : const Center(
+                        child: Text(
+                          'Không có cây trồng nào',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.grey,
+                          ),
+                        ),
+                      ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _handleChoosePlant(String plantId) async {
+    String token = (await getToken()).toString();
+    String refreshToken = (await getRefreshToken()).toString();
+    String deviceId = (await getDeviceId()).toString();
+
+    if (!mounted) return; // Kiểm tra widget đã bị unmount hay chưa
+
+    final response = await http.put(
+      Uri.parse('${apiUrl}device/set-plant'),
+      headers: <String, String>{
+        'Content-Type': 'application/json; charset=UTF-8',
+        'Cookie': 'DeviceId=$deviceId; RefreshToken=$refreshToken',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode(<String, dynamic>{
+        'plantId': plantId,
+        'deviceItemId': widget.deviceId,
+      }),
+    );
+
+    String? newAccessToken = response.headers['new-access-token'];
+    if (newAccessToken != null) {
+      await updateToken(newAccessToken);
+    }
+
+    if (!mounted) return; // Kiểm tra lại widget trước khi setState
+
+    if (response.statusCode == 200) {
+      Fluttertoast.showToast(
+        msg: 'Cập nhật cây trồng thành công',
+        toastLength: Toast.LENGTH_SHORT,
+        gravity: ToastGravity.BOTTOM,
+        timeInSecForIosWeb: 1,
+        textColor: Colors.black,
+        fontSize: 16.0,
+      );
+      Navigator.pop(context, true);
+    } else if (response.statusCode == 401) {
+      if (mounted) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => Logout(controller: widget.controller),
+            ),
+          );
+        });
+      }
+    } else {
+      Map<String, dynamic> responseJson = jsonDecode(response.body);
+      _getListPlantStatus = responseJson['message'];
+
+      if (mounted) {
+        Fluttertoast.showToast(
+          msg: _getListPlantStatus,
+          toastLength: Toast.LENGTH_SHORT,
+          gravity: ToastGravity.BOTTOM,
+          timeInSecForIosWeb: 1,
+          textColor: Colors.black,
+          fontSize: 16.0,
+        );
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            Navigator.pop(context);
+          }
+        });
+      }
+    }
+  }
+
+  Future<void> _getListPlant() async {
+    String token = (await getToken()).toString();
+    String refreshToken = (await getRefreshToken()).toString();
+    String deviceId = (await getDeviceId()).toString();
+
+    if (!mounted) return; // Kiểm tra widget đã bị unmount hay chưa
+
+    final response = await http.get(
+      Uri.parse('${apiUrl}plant?pageSize=1000'),
+      headers: <String, String>{
+        'Content-Type': 'application/json; charset=UTF-8',
+        'Cookie': 'DeviceId=$deviceId; RefreshToken=$refreshToken',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    String? newAccessToken = response.headers['new-access-token'];
+    if (newAccessToken != null) {
+      await updateToken(newAccessToken);
+    }
+
+    if (!mounted) return; // Kiểm tra lại widget trước khi setState
+
+    if (response.statusCode == 200) {
+      // Fluttertoast.showToast(
+      //   msg: 'Cập nhật chu kỳ làm mới thành công',
+      //   toastLength: Toast.LENGTH_SHORT,
+      //   gravity: ToastGravity.BOTTOM,
+      //   timeInSecForIosWeb: 1,
+      //   textColor: Colors.black,
+      //   fontSize: 16.0,
+      // );
+      Map<String, dynamic> responseJson = jsonDecode(response.body);
+      List<dynamic> dataList = responseJson['response']?['data'] ?? [];
+      _listPlant = dataList.map((item) => PlantModel.fromJson(item)).toList();
+      setState(() {
+        _isLoading = false;
+      });
+    } else if (response.statusCode == 401) {
+      if (mounted) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => Logout(controller: widget.controller),
+            ),
+          );
+        });
+      }
+    } else {
+      Map<String, dynamic> responseJson = jsonDecode(response.body);
+      _getListPlantStatus = responseJson['message'];
+
+      if (mounted) {
+        Fluttertoast.showToast(
+          msg: _getListPlantStatus,
           toastLength: Toast.LENGTH_SHORT,
           gravity: ToastGravity.BOTTOM,
           timeInSecForIosWeb: 1,
