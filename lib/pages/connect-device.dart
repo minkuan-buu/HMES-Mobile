@@ -380,9 +380,9 @@ class _InputWifiPasswordState extends State<InputWifiPassword> {
                       backgroundColor: const Color(0xFF9F7BFF),
                     ),
                     child:
-                        _isLoading
+                        !_isLoading
                             ? Text(
-                              'Cập nhật dữ liệu',
+                              'Kết nối',
                               style: TextStyle(
                                 color: Colors.white,
                                 fontSize: 15,
