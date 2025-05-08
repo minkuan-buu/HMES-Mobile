@@ -25,8 +25,8 @@ class _LogoutState extends State<Logout> {
   }
 
   Future<void> _logout() async {
-    // Stop the foreground service and MQTT connection
-    await ForegroundServiceHelper.stopForegroundService();
+    // First disconnect MQTT only, don't stop the foreground service
+    // This will prevent needing to create a new foreground service after login
     MqttService().disconnect();
 
     String token = (await getToken()).toString();
@@ -42,7 +42,7 @@ class _LogoutState extends State<Logout> {
       },
     );
 
-    await removeToken(); // Xóa token bất kể thành công hay thất bại
+    await removeToken(); // Clear tokens regardless of success or failure
 
     if (response.statusCode == 200) {
       _logoutStatus = 'Đã đăng xuất khỏi thiết bị!';
@@ -60,9 +60,9 @@ class _LogoutState extends State<Logout> {
     );
 
     if (mounted) {
-      setState(() {}); // Cập nhật UI nếu widget chưa bị dispose
+      setState(() {}); // Update UI if widget not disposed
 
-      // Chuyển hướng sau khi cập nhật UI
+      // Navigate after UI update
       Future.microtask(() {
         if (mounted) {
           Navigator.pushAndRemoveUntil(

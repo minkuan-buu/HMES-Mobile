@@ -5,10 +5,12 @@ import 'package:hmes/components/components.dart';
 import 'package:hmes/context/baseAPI_URL.dart';
 import 'package:hmes/helper/secureStorageHelper.dart';
 import 'package:hmes/helper/sharedPreferencesHelper.dart';
-import 'package:hmes/pages/reset-password.dart';
-import 'package:loading_overlay/loading_overlay.dart';
 import 'package:hmes/pages/home.dart';
+import 'package:hmes/pages/reset-password.dart';
+import 'package:hmes/services/foreground_service.dart';
+import 'package:hmes/services/mqtt-service.dart';
 import 'package:http/http.dart' as http;
+import 'package:loading_overlay/loading_overlay.dart';
 
 // import 'package:firebase_auth/firebase_auth.dart';
 
@@ -212,17 +214,16 @@ class _LoginPageState extends State<LoginPage> {
       String? setCookie = response.headers['set-cookie'];
 
       if (setCookie != null) {
-        // Chia thành danh sách các cookie
+        // Split into cookie list
         setCookie = Uri.decodeFull(setCookie);
         List<String> cookies = setCookie.split(',');
 
-        // Tạo Map để lưu trữ cookie
+        // Create Map to store cookies
         Map<String, String> cookieMap = {};
 
         for (var cookie in cookies) {
-          String keyValue =
-              cookie.split(';')[0]; // Lấy phần key=value trước dấu ;
-          int index = keyValue.indexOf('='); // Tìm vị trí dấu '=' đầu tiên
+          String keyValue = cookie.split(';')[0]; // Get key=value part before ;
+          int index = keyValue.indexOf('='); // Find position of first '='
 
           if (index != -1) {
             String key = keyValue.substring(0, index).trim();
@@ -231,20 +232,42 @@ class _LoginPageState extends State<LoginPage> {
           }
         }
 
-        // Lấy giá trị của từng cookie
+        // Get value of each cookie
         String? deviceId = cookieMap['DeviceId'];
         String? refreshToken = cookieMap['RefreshToken'];
-        // Chuyển response.body từ String thành Map
+        // Convert response.body from String to Map
         Map<String, dynamic> responseJson = jsonDecode(response.body);
 
-        // Truy xuất token từ response
+        // Get token from response
         Map<String, dynamic> data = responseJson['response']?['data'];
         String? token = data['auth']?['token'];
         if (token != null && refreshToken != null && deviceId != null) {
-          saveToken(token, refreshToken, deviceId);
+          await saveToken(token, refreshToken, deviceId);
         }
         Map<String, String> key = {'userId': data['id']};
         await saveTempKey(key);
+
+        // Reconnect MQTT service with the new credentials
+        try {
+          // Check if foreground service is running
+          bool isServiceRunning =
+              await ForegroundServiceHelper.isServiceRunning();
+
+          if (isServiceRunning) {
+            // Just reconnect MQTT with new credentials
+            MqttService mqttService = MqttService();
+            await mqttService.connect(source: 'login_page');
+            debugPrint('MQTT reconnected after login');
+          } else {
+            // Start foreground service if it's not running
+            await ForegroundServiceHelper.startForegroundService();
+            debugPrint('Foreground service started after login');
+          }
+        } catch (e) {
+          debugPrint('Error reconnecting MQTT after login: $e');
+          // Continue login process even if MQTT connection fails
+          // The foreground service will retry later
+        }
       } else {
         print('Không tìm thấy cookie.');
       }

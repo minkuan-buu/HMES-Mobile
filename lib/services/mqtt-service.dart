@@ -179,11 +179,23 @@ class MqttService {
         _client!.connectionStatus != null &&
         _client!.connectionStatus!.state == MqttConnectionState.connected) {
       _client!.subscribe(topic, MqttQos.atLeastOnce);
+      debugPrint('Subscribed to notification topic: $topic');
 
       // Cancel any existing subscription before creating a new one
       _notificationSubscription?.cancel();
 
       _notificationSubscription = _client!.updates?.listen((messages) {
+        if (messages.isEmpty) return;
+
+        // Skip processing if the message is not for our notification topic
+        // This helps avoid processing refresh messages as notifications
+        if (!messages.last.topic.startsWith('push/notification/')) {
+          debugPrint(
+            'Skipping message for topic: ${messages.last.topic} (not a notification)',
+          );
+          return;
+        }
+
         final MqttPublishMessage recMessage =
             messages[0].payload as MqttPublishMessage;
         final payload = MqttPublishPayload.bytesToStringAsString(
@@ -362,8 +374,9 @@ class MqttService {
 
   // Send refresh signal
   Future<void> sendRefreshSignal(String deviceItemId) async {
-    // Set refresh state
-    // _isRefreshing = true;
+    // Cancel any existing refresh subscription to avoid duplicates
+    _refreshSubscription?.cancel();
+    _refreshSubscription = null;
 
     final String topic = 'esp32/refresh/$deviceItemId';
     final String responseTopic = 'esp32/refresh/response/$deviceItemId';
@@ -377,8 +390,52 @@ class MqttService {
       if (_client != null &&
           _client!.connectionStatus != null &&
           _client!.connectionStatus!.state == MqttConnectionState.connected) {
-        // Subscribe to response topic before sending
+        // Unsubscribe first to avoid duplicate subscriptions
+        _client!.unsubscribe(responseTopic);
+
+        // Then subscribe to response topic
         _client!.subscribe(responseTopic, MqttQos.atLeastOnce);
+        debugPrint('Subscribed to refresh response topic: $responseTopic');
+
+        // Set up listener for response before sending refresh command
+        _refreshSubscription = _client!.updates?.listen((messages) {
+          if (messages.isEmpty) return;
+
+          // Check if this message is for our response topic
+          if (messages.last.topic != responseTopic) return;
+
+          final MqttPublishMessage recMessage =
+              messages[0].payload as MqttPublishMessage;
+          final payload = MqttPublishPayload.bytesToStringAsString(
+            recMessage.payload.message,
+          );
+
+          debugPrint('Received message on refresh response topic: $payload');
+
+          try {
+            // Call onNewNotification with the response payload only if it's a valid refresh response
+            // This will update the UI with the new data
+            if (onNewNotification != null && payload.isNotEmpty) {
+              onNewNotification!(payload);
+              debugPrint('Processed refresh response successfully');
+            }
+
+            // Complete the refresh process
+            if (!completer.isCompleted) {
+              completer.complete();
+            }
+          } catch (e) {
+            debugPrint('Error parsing refresh response: $e');
+            if (!completer.isCompleted) {
+              completer.completeError(e);
+            }
+          } finally {
+            // Clean up subscription to avoid duplicate messages
+            _client!.unsubscribe(responseTopic);
+            _refreshSubscription?.cancel();
+            _refreshSubscription = null;
+          }
+        });
 
         // Send refresh signal
         await _client!.publishMessage(
@@ -386,64 +443,37 @@ class MqttService {
           MqttQos.atLeastOnce,
           builder.payload!,
         );
-        debugPrint('Refresh signal sent to IoT');
+        debugPrint('Refresh signal sent to IoT device: $deviceItemId');
 
-        // Listen for refresh response
-        _refreshSubscription = _client!.updates?.listen((messages) {
-          final MqttPublishMessage recMessage =
-              messages[0].payload as MqttPublishMessage;
-          final payload = MqttPublishPayload.bytesToStringAsString(
-            recMessage.payload.message,
-          );
-
-          try {
-            final Map<String, dynamic> response = jsonDecode(payload);
-
-            // Check if this is a refresh response
-            if (messages.last.topic == responseTopic) {
-              onNewNotification?.call(payload);
-              debugPrint('Received refresh response: $payload');
-              debugPrint('Refresh response received');
-
-              // Unsubscribe from refresh topic
-              _client!.unsubscribe(responseTopic);
-              _refreshSubscription?.cancel();
-
-              // Complete refresh process
-              if (!completer.isCompleted) {
-                completer.complete();
-              }
-            }
-          } catch (e) {
-            debugPrint('Error parsing refresh response: $e');
-          }
-        });
-
-        // Timeout for refresh
-        Future.delayed(Duration(seconds: 30), () {
+        // Set up timeout for refresh response
+        Future.delayed(const Duration(seconds: 30), () {
           if (!completer.isCompleted) {
-            debugPrint('Refresh response timeout');
+            debugPrint('Refresh response timeout after 30 seconds');
+
+            // Call with empty string to indicate timeout
             onNewNotification?.call('');
+
+            // Clean up
             _client!.unsubscribe(responseTopic);
             _refreshSubscription?.cancel();
-            //completer.completeError('Timeout');
+            _refreshSubscription = null;
+
+            completer.complete(); // Complete without error to avoid crashes
           }
         });
       } else {
         debugPrint('MQTT Client is not connected. Attempting to reconnect...');
-        await connect(); // Try immediate reconnect
+        await connect(source: 'refresh'); // Try immediate reconnect
         completer.completeError('Not connected');
       }
     } catch (e) {
       debugPrint('Error sending refresh signal: $e');
-      await connect(); // Try immediate reconnect
-      completer.completeError(e);
-    } finally {
-      // Ensure refresh state is reset
-      return completer.future.whenComplete(() {
-        _isRefreshing = false;
-      });
+      if (!completer.isCompleted) {
+        completer.completeError(e);
+      }
     }
+
+    return completer.future;
   }
 
   // Attempt to reconnect to MQTT broker with exponential backoff

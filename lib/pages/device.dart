@@ -858,11 +858,11 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
   }
 
   Future<void> RefreshData(String message) async {
-    // Sau khi hoàn thành việc xử lý dữ liệu, bật lại nút
-    setState(() {
-      _isButtonRefresh = true;
-    });
-    if (message == '') {
+    // Return early if message is empty (timeout case)
+    if (message.isEmpty) {
+      setState(() {
+        _isButtonRefresh = true;
+      });
       Fluttertoast.showToast(
         msg: 'Không có dữ liệu mới',
         toastLength: Toast.LENGTH_SHORT,
@@ -871,27 +871,73 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
         textColor: Colors.black,
         fontSize: 16.0,
       );
+      return;
     }
-    // parse dữ liệu sang json
-    Map<String, dynamic> jsonData = jsonDecode(message);
-    // Kiểm tra xem dữ liệu có hợp lệ không
-    if (jsonData.isNotEmpty) {
-      // Cập nhật dữ liệu vào model
-      _deviceItem?.setIoTData(IoTResModel.fromJson(jsonData));
-      // Cập nhật lại giao diện
-      setState(() {
-        _deviceItem?.ioTData?.ph = jsonData['ph'] ?? 0.0;
-        _deviceItem?.ioTData?.soluteConcentration =
-            jsonData['soluteConcentration'] ?? 0.0;
-        _deviceItem?.ioTData?.temperature = jsonData['temperature'] ?? 0.0;
-        _deviceItem?.ioTData?.waterLevel = jsonData['waterLevel'] ?? 0.0;
-      });
-      String token = (await getToken()).toString();
-      String refreshToken = (await getRefreshToken()).toString();
-      String deviceId = (await getDeviceId()).toString();
 
-      if (!mounted) return; // Kiểm tra widget đã bị unmount hay chưa
+    // Ensure button is re-enabled
+    setState(() {
+      _isButtonRefresh = true;
+    });
 
+    try {
+      // Parse data to json
+      Map<String, dynamic> jsonData = jsonDecode(message);
+
+      // Check if this is a notification or refresh data
+      // Refresh data should contain IoT data fields
+      if (jsonData.containsKey('ph') ||
+          jsonData.containsKey('soluteConcentration') ||
+          jsonData.containsKey('temperature') ||
+          jsonData.containsKey('waterLevel')) {
+        // Update the device's IoT data
+        setState(() {
+          _deviceItem?.ioTData?.ph =
+              jsonData['ph'] ?? _deviceItem?.ioTData?.ph ?? 0.0;
+          _deviceItem?.ioTData?.soluteConcentration =
+              jsonData['soluteConcentration'] ??
+              _deviceItem?.ioTData?.soluteConcentration ??
+              0.0;
+          _deviceItem?.ioTData?.temperature =
+              jsonData['temperature'] ??
+              _deviceItem?.ioTData?.temperature ??
+              0.0;
+          _deviceItem?.ioTData?.waterLevel =
+              jsonData['waterLevel'] ?? _deviceItem?.ioTData?.waterLevel ?? 0.0;
+
+          // Update last updated date
+          _deviceItem?.lastUpdatedDate = DateTime.now();
+        });
+
+        // Send the new data to the server
+        await _sendIoTDataToServer(jsonData);
+      } else {
+        // This is likely a notification, not a refresh response - ignore for refresh purposes
+        debugPrint(
+          "Received notification during refresh, ignoring for refresh purposes",
+        );
+      }
+    } catch (e) {
+      debugPrint("Error processing refresh data: $e");
+      Fluttertoast.showToast(
+        msg: 'Không thể xử lý dữ liệu: ${e.toString()}',
+        toastLength: Toast.LENGTH_SHORT,
+        gravity: ToastGravity.BOTTOM,
+        timeInSecForIosWeb: 1,
+        textColor: Colors.black,
+        fontSize: 16.0,
+      );
+    }
+  }
+
+  // New method to send IoT data to server
+  Future<void> _sendIoTDataToServer(Map<String, dynamic> jsonData) async {
+    String token = (await getToken()).toString();
+    String refreshToken = (await getRefreshToken()).toString();
+    String deviceId = (await getDeviceId()).toString();
+
+    if (!mounted) return;
+
+    try {
       final response = await http.post(
         Uri.parse('${apiUrl}user/me/mobile/devices/${widget.deviceId}'),
         headers: <String, String>{
@@ -907,7 +953,7 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
         await updateToken(newAccessToken);
       }
 
-      if (!mounted) return; // Kiểm tra lại widget trước khi setState
+      if (!mounted) return;
 
       if (response.statusCode == 200) {
         Fluttertoast.showToast(
@@ -931,37 +977,32 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
         }
       } else {
         Map<String, dynamic> responseJson = jsonDecode(response.body);
-        _getDeviceStatus = responseJson['message'];
+        String getDeviceStatus = responseJson['message'];
 
         if (mounted) {
           Fluttertoast.showToast(
-            msg: _getDeviceStatus,
+            msg: getDeviceStatus,
             toastLength: Toast.LENGTH_SHORT,
             gravity: ToastGravity.BOTTOM,
             timeInSecForIosWeb: 1,
             textColor: Colors.black,
             fontSize: 16.0,
           );
-
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) {
-              Navigator.pop(context);
-            }
-          });
         }
       }
-    } else {
-      Fluttertoast.showToast(
-        msg: 'Không thể cập nhật dữ liệu lên máy chủ',
-        toastLength: Toast.LENGTH_SHORT,
-        gravity: ToastGravity.BOTTOM,
-        timeInSecForIosWeb: 1,
-        textColor: Colors.black,
-        fontSize: 16.0,
-      );
+    } catch (e) {
+      if (mounted) {
+        Fluttertoast.showToast(
+          msg: 'Không thể cập nhật dữ liệu lên máy chủ',
+          toastLength: Toast.LENGTH_SHORT,
+          gravity: ToastGravity.BOTTOM,
+          timeInSecForIosWeb: 1,
+          textColor: Colors.black,
+          fontSize: 16.0,
+        );
+      }
+      debugPrint("Error sending IoT data to server: $e");
     }
-    // Thực hiện các thao tác khác với message nếu cần.
-    debugPrint("Dữ liệu đã được cập nhật: $message");
   }
 
   Future<void> _getDeviceDetails() async {

@@ -416,7 +416,7 @@ class ForegroundServiceHelper {
             name: 'launcher',
           ),
           buttons: [
-            const NotificationButton(id: 'refreshButton', text: 'Refresh'),
+            const NotificationButton(id: 'refreshButton', text: 'Làm mới'),
           ],
         ),
         iosNotificationOptions: const IOSNotificationOptions(
