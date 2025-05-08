@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:hmes/services/mqtt-service.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:hmes/helper/secureStorageHelper.dart';
 
 // The callback function should always be a top-level function
 @pragma('vm:entry-point')
@@ -65,6 +66,24 @@ class MqttTaskHandler extends TaskHandler {
     // Initialize the MQTT service - use the singleton to prevent duplicates
     _mqttService = MqttService();
 
+    // Check login status
+    final shouldAutoStart =
+        await FlutterForegroundTask.getData(key: 'shouldAutoStart') == true;
+    final serviceActive =
+        await FlutterForegroundTask.getData(key: 'serviceActive') == true;
+
+    // Update notification based on login status
+    if (!shouldAutoStart || !serviceActive) {
+      await FlutterForegroundTask.updateService(
+        notificationTitle: 'HMES dịch vụ thông báo - Chưa đăng nhập',
+        notificationText: 'Đăng nhập để kích hoạt thông báo',
+      );
+      debugPrint(
+        'MqttTaskHandler: Service started but user not logged in or service disabled',
+      );
+      return;
+    }
+
     // Check if we're restarting after being destroyed
     final wasDestroyed =
         await FlutterForegroundTask.getData(key: 'serviceWasDestroyed') == true;
@@ -110,6 +129,28 @@ class MqttTaskHandler extends TaskHandler {
     // Don't attempt to connect if we're already trying
     if (_isConnecting) {
       debugPrint('MqttTaskHandler: Already trying to connect, skipping');
+      return;
+    }
+
+    // First, check if user is logged in by checking flags
+    final shouldAutoStart =
+        await FlutterForegroundTask.getData(key: 'shouldAutoStart') == true;
+    final serviceActive =
+        await FlutterForegroundTask.getData(key: 'serviceActive') == true;
+
+    if (!shouldAutoStart || !serviceActive) {
+      debugPrint(
+        'MqttTaskHandler: Service is disabled or user not logged in, will not connect',
+      );
+
+      // Update notification to show disabled status
+      await FlutterForegroundTask.updateService(
+        notificationTitle: 'HMES dịch vụ thông báo - Chưa đăng nhập',
+        notificationText: 'Đăng nhập để kích hoạt thông báo',
+      );
+
+      // Cancel any future reconnection attempts
+      _reconnectTimer?.cancel();
       return;
     }
 
@@ -217,6 +258,19 @@ class MqttTaskHandler extends TaskHandler {
     // This method is called periodically based on the interval set in ForegroundTaskOptions
     // Check connection status only, don't do heavy work here
     try {
+      // First check if user is logged in and service should be active
+      final shouldAutoStart =
+          await FlutterForegroundTask.getData(key: 'shouldAutoStart') == true;
+      final serviceActive =
+          await FlutterForegroundTask.getData(key: 'serviceActive') == true;
+
+      if (!shouldAutoStart || !serviceActive) {
+        debugPrint(
+          'MqttTaskHandler: Service is disabled or user not logged in, skipping reconnect',
+        );
+        return;
+      }
+
       if (_mqttService != null && !_isConnecting) {
         if (!_mqttService!.isConnected) {
           debugPrint(
@@ -402,6 +456,34 @@ class ForegroundServiceHelper {
   // Initialize the foreground task
   static Future<void> initForegroundTask() async {
     try {
+      // Before we do anything, check if user is logged in
+      final token = await getToken();
+      final isLoggedIn = token != null && token.isNotEmpty;
+
+      debugPrint('Initializing foreground task, user logged in: $isLoggedIn');
+
+      // Set autostart based on login status
+      await FlutterForegroundTask.saveData(
+        key: 'shouldAutoStart',
+        value: isLoggedIn,
+      );
+      await FlutterForegroundTask.saveData(
+        key: 'serviceActive',
+        value: isLoggedIn,
+      );
+
+      // If not logged in, stop any running service
+      if (!isLoggedIn) {
+        final isRunning = await isServiceRunning();
+        if (isRunning) {
+          debugPrint(
+            'User not logged in but service running, stopping service',
+          );
+          await stopForegroundService();
+          return; // Early return if user is not logged in
+        }
+      }
+
       FlutterForegroundTask.init(
         androidNotificationOptions: AndroidNotificationOptions(
           channelId: 'hmes_notification_channel',
@@ -431,30 +513,55 @@ class ForegroundServiceHelper {
           allowWifiLock: true,
         ),
       );
-      print('Foreground task initialized successfully');
-
-      // Set autostart data
-      await FlutterForegroundTask.saveData(key: 'shouldAutoStart', value: true);
+      debugPrint('Foreground task initialized successfully');
 
       // Check if the service was previously destroyed and should be restored
-      checkAndRestoreService();
+      if (isLoggedIn) {
+        checkAndRestoreService();
 
-      // If we're initializing after app restart, ensure service is running
-      Future.delayed(Duration(seconds: 1), () async {
-        final isRunning = await isServiceRunning();
-        if (!isRunning && await hasNotificationPermission()) {
-          debugPrint('Starting service during initialization');
-          await startForegroundService();
-        }
-      });
+        // If we're initializing after app restart, ensure service is running
+        Future.delayed(Duration(seconds: 1), () async {
+          final isRunning = await isServiceRunning();
+          if (!isRunning && await hasNotificationPermission()) {
+            debugPrint('Starting service during initialization');
+            await startForegroundService();
+          }
+        });
+      }
     } catch (e) {
-      print('Error initializing foreground task: $e');
+      debugPrint('Error initializing foreground task: $e');
     }
   }
 
   // Check if service was previously running and should be restored
   static Future<void> checkAndRestoreService() async {
     try {
+      // First, check if user is logged in
+      final token = await getToken();
+      final isLoggedIn = token != null && token.isNotEmpty;
+
+      if (!isLoggedIn) {
+        debugPrint('User not logged in, will not restore foreground service');
+
+        // Make sure service is not running
+        if (await isServiceRunning()) {
+          debugPrint('Stopping service as user is not logged in');
+          await stopForegroundService();
+        }
+
+        // Update flags
+        await FlutterForegroundTask.saveData(
+          key: 'shouldAutoStart',
+          value: false,
+        );
+        await FlutterForegroundTask.saveData(
+          key: 'serviceActive',
+          value: false,
+        );
+
+        return;
+      }
+
       // Check stored flags to see if service was previously active
       final wasActive =
           await FlutterForegroundTask.getData(key: 'serviceActive') == true;
@@ -556,6 +663,31 @@ class ForegroundServiceHelper {
   static Future<bool> startForegroundService() async {
     try {
       debugPrint('Starting foreground service...');
+
+      // First, check if user is logged in
+      final token = await getToken();
+      final isLoggedIn = token != null && token.isNotEmpty;
+
+      if (!isLoggedIn) {
+        debugPrint('User is not logged in, will not start foreground service');
+
+        // Set flags to prevent auto-start
+        await FlutterForegroundTask.saveData(
+          key: 'shouldAutoStart',
+          value: false,
+        );
+        await FlutterForegroundTask.saveData(
+          key: 'serviceActive',
+          value: false,
+        );
+
+        // Stop the service if it's running
+        if (await isServiceRunning()) {
+          await stopForegroundService();
+        }
+
+        return false;
+      }
 
       // Check if the service is already running
       if (await isServiceRunning()) {
