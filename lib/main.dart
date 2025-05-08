@@ -42,6 +42,19 @@ void main() async {
   final bool isLoggedIn =
       token.isNotEmpty && refreshToken.isNotEmpty && deviceId.isNotEmpty;
 
+  // Set flags based on login status
+  if (!isLoggedIn) {
+    print('User not logged in, disabling foreground service auto-start');
+    await FlutterForegroundTask.saveData(key: 'shouldAutoStart', value: false);
+    await FlutterForegroundTask.saveData(key: 'serviceActive', value: false);
+
+    // Stop the service if it's running
+    if (await ForegroundServiceHelper.isServiceRunning()) {
+      print('Stopping foreground service as user is not logged in');
+      await ForegroundServiceHelper.stopForegroundService();
+    }
+  }
+
   runApp(MyApp(isLoggedIn: isLoggedIn));
 }
 
@@ -162,9 +175,34 @@ class _PermissionHandlerWidgetState extends State<PermissionHandlerWidget>
     bool hasPermission = await _requestNotificationPermissions();
 
     if (hasPermission) {
-      print('Notification permission granted, starting service...');
-      // Start the foreground service
-      await ForegroundServiceHelper.startForegroundService();
+      print('Notification permission granted, checking login status...');
+
+      // Check if user is logged in by checking for the token
+      String? token = await getToken();
+      bool isLoggedIn = token != null && token.isNotEmpty;
+
+      if (isLoggedIn) {
+        print('User is logged in, starting service...');
+        // Start the foreground service only if user is logged in
+        await ForegroundServiceHelper.startForegroundService();
+      } else {
+        print('User is not logged in, skipping foreground service start');
+        // Ensure service is not running if user is not logged in
+        if (await ForegroundServiceHelper.isServiceRunning()) {
+          print('Stopping service since user is not logged in');
+          await ForegroundServiceHelper.stopForegroundService();
+        }
+
+        // Set flags to prevent auto-start
+        await FlutterForegroundTask.saveData(
+          key: 'shouldAutoStart',
+          value: false,
+        );
+        await FlutterForegroundTask.saveData(
+          key: 'serviceActive',
+          value: false,
+        );
+      }
     } else {
       print('Notification permission denied, cannot start foreground service');
 
@@ -241,6 +279,15 @@ class ForegroundTaskHandler extends StatelessWidget {
   Widget build(BuildContext context) {
     return WillStartForegroundTask(
       onWillStart: () async {
+        // First check if user is logged in
+        String? token = await getToken();
+        bool isLoggedIn = token != null && token.isNotEmpty;
+
+        if (!isLoggedIn) {
+          print('User is not logged in, will not start foreground service');
+          return false;
+        }
+
         // Check if the service is already running
         final isRunning = await ForegroundServiceHelper.isServiceRunning();
         if (isRunning) {
@@ -257,7 +304,7 @@ class ForegroundTaskHandler extends StatelessWidget {
           return false;
         }
 
-        // Start the service
+        // Start the service only if logged in
         return await ForegroundServiceHelper.startForegroundService();
       },
       androidNotificationOptions: AndroidNotificationOptions(
