@@ -879,15 +879,59 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
       ),
     );
   }
-
+  
   Future<void> refreshData(String message) async {
-    // Sau khi hoàn thành việc xử lý dữ liệu, bật lại nút
     setState(() {
       _isButtonRefreshing = true;
     });
-    if (message == '') {
+
+    try {
+      // Parse data to json
+      Map<String, dynamic> jsonData = jsonDecode(message);
+
+      // Check if this is a notification or refresh data
+      // Refresh data should contain IoT data fields
+      if (jsonData.containsKey('ph') ||
+          jsonData.containsKey('soluteConcentration') ||
+          jsonData.containsKey('temperature') ||
+          jsonData.containsKey('waterLevel')) {
+        // Update the device's IoT data
+        setState(() {
+          _deviceItem?.ioTData?.ph =
+              jsonData['ph'] ?? _deviceItem?.ioTData?.ph ?? 0.0;
+          _deviceItem?.ioTData?.soluteConcentration =
+              jsonData['soluteConcentration'] ??
+              _deviceItem?.ioTData?.soluteConcentration ??
+              0.0;
+          _deviceItem?.ioTData?.temperature =
+              jsonData['temperature'] ??
+              _deviceItem?.ioTData?.temperature ??
+              0.0;
+          _deviceItem?.ioTData?.waterLevel =
+              jsonData['waterLevel'] ?? _deviceItem?.ioTData?.waterLevel ?? 0.0;
+
+          // Update last updated date
+          _deviceItem?.lastUpdatedDate = DateTime.now();
+        });
+        
+        Fluttertoast.showToast(
+          msg: 'Đã cập nhật dữ liệu',
+          toastLength: Toast.LENGTH_SHORT,
+          gravity: ToastGravity.BOTTOM,
+          timeInSecForIosWeb: 1,
+          textColor: Colors.black,
+          fontSize: 16.0,
+        );
+      } else {
+        // This is likely a notification, not a refresh response - ignore for refresh purposes
+        debugPrint(
+          "Received notification during refresh, ignoring for refresh purposes",
+        );
+      }
+    } catch (e) {
+      debugPrint("Error processing refresh data: $e");
       Fluttertoast.showToast(
-        msg: 'Không có dữ liệu mới',
+        msg: 'Không thể xử lý dữ liệu: ${e.toString()}',
         toastLength: Toast.LENGTH_SHORT,
         gravity: ToastGravity.BOTTOM,
         timeInSecForIosWeb: 1,
@@ -895,99 +939,6 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
         fontSize: 16.0,
       );
     }
-    // parse dữ liệu sang json
-    Map<String, dynamic> jsonData = jsonDecode(message);
-    // Kiểm tra xem dữ liệu có hợp lệ không
-    if (jsonData.isNotEmpty) {
-      // Cập nhật dữ liệu vào model
-      // _deviceItem?.setIoTData(IoTResModel.fromJson(jsonData));
-      // Cập nhật lại giao diện
-      setState(() {
-        _deviceItem?.ioTData?.ph = (jsonData['ph'] ?? 0).toDouble();
-        _deviceItem?.ioTData?.soluteConcentration =
-            (jsonData['soluteConcentration'] ?? 0).toDouble();
-        _deviceItem?.ioTData?.temperature =
-            (jsonData['temperature'] ?? 0).toDouble();
-        _deviceItem?.ioTData?.waterLevel = jsonData['waterLevel'] ?? 0;
-        _deviceItem?.lastUpdatedDate = DateTime.now(); // Cập nhật thời gian
-      });
-
-      // String token = (await getToken()).toString();
-      // String refreshToken = (await getRefreshToken()).toString();
-      // String deviceId = (await getDeviceId()).toString();
-
-      // if (!mounted) return; // Kiểm tra widget đã bị unmount hay chưa
-
-      // final response = await http.post(
-      //   Uri.parse('${apiUrl}user/me/mobile/devices/${widget.deviceId}'),
-      //   headers: <String, String>{
-      //     'Content-Type': 'application/json; charset=UTF-8',
-      //     'Cookie': 'DeviceId=$deviceId; RefreshToken=$refreshToken',
-      //     'Authorization': 'Bearer $token',
-      //   },
-      //   body: jsonEncode(jsonData),
-      // );
-
-      // String? newAccessToken = response.headers['new-access-token'];
-      // if (newAccessToken != null) {
-      //   await updateToken(newAccessToken);
-      // }
-
-      if (!mounted) return; // Kiểm tra lại widget trước khi setState
-
-      // if (response.statusCode == 200) {
-      Fluttertoast.showToast(
-        msg: 'Đã cập nhật dữ liệu',
-        toastLength: Toast.LENGTH_SHORT,
-        gravity: ToastGravity.BOTTOM,
-        timeInSecForIosWeb: 1,
-        textColor: Colors.black,
-        fontSize: 16.0,
-      );
-      // } else if (response.statusCode == 401) {
-      //   if (mounted) {
-      //     WidgetsBinding.instance.addPostFrameCallback((_) {
-      //       Navigator.push(
-      //         context,
-      //         MaterialPageRoute(
-      //           builder: (context) => Logout(controller: widget.controller),
-      //         ),
-      //       );
-      //     });
-      //   }
-      // } else {
-      //   Map<String, dynamic> responseJson = jsonDecode(response.body);
-      //   _getDeviceStatus = responseJson['message'];
-
-      //   if (mounted) {
-      //     Fluttertoast.showToast(
-      //       msg: _getDeviceStatus,
-      //       toastLength: Toast.LENGTH_SHORT,
-      //       gravity: ToastGravity.BOTTOM,
-      //       timeInSecForIosWeb: 1,
-      //       textColor: Colors.black,
-      //       fontSize: 16.0,
-      //     );
-
-      //     WidgetsBinding.instance.addPostFrameCallback((_) {
-      //       if (mounted) {
-      //         Navigator.pop(context);
-      //       }
-      //     });
-      //   }
-      // }
-    } else {
-      Fluttertoast.showToast(
-        msg: 'Không thể cập nhật dữ liệu lên máy chủ',
-        toastLength: Toast.LENGTH_SHORT,
-        gravity: ToastGravity.BOTTOM,
-        timeInSecForIosWeb: 1,
-        textColor: Colors.black,
-        fontSize: 16.0,
-      );
-    }
-    // Thực hiện các thao tác khác với message nếu cần.
-    debugPrint("Dữ liệu đã được cập nhật: $message");
   }
 
   void _goToChoosePlant() async {

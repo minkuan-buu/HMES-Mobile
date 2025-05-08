@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:hmes/helper/logout.dart';
 import 'package:hmes/pages/change-password.dart';
 import 'package:hmes/pages/information.dart';
+import 'package:hmes/services/foreground_service.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key, required this.controller});
@@ -177,4 +178,11 @@ class _ProfilePageState extends State<ProfilePage> {
       ),
     );
   }
+}
+
+Future<void> logout() async {
+  // Stop the foreground service before logging out
+  await ForegroundServiceHelper.stopForegroundService();
+
+  // ... existing logout code ...
 }
