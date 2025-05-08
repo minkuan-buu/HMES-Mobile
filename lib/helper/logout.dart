@@ -6,6 +6,7 @@ import 'package:hmes/pages/home.dart';
 import 'package:hmes/services/foreground_service.dart';
 import 'package:hmes/services/mqtt-service.dart';
 import 'package:http/http.dart' as http;
+import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 
 class Logout extends StatefulWidget {
   const Logout({super.key, required this.controller});
@@ -25,9 +26,15 @@ class _LogoutState extends State<Logout> {
   }
 
   Future<void> _logout() async {
-    // First disconnect MQTT only, don't stop the foreground service
-    // This will prevent needing to create a new foreground service after login
+    // First disconnect MQTT service
     MqttService().disconnect();
+
+    // Also stop the foreground service to prevent reconnection attempts
+    await ForegroundServiceHelper.stopForegroundService();
+
+    // Set auto-start flag to false to prevent service from restarting automatically
+    await FlutterForegroundTask.saveData(key: 'shouldAutoStart', value: false);
+    await FlutterForegroundTask.saveData(key: 'serviceActive', value: false);
 
     String token = (await getToken()).toString();
     String refreshToken = (await getRefreshToken()).toString();

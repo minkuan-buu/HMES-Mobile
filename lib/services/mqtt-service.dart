@@ -55,6 +55,15 @@ class MqttService {
 
   // Connect to MQTT broker
   Future<bool> connect({String source = 'unknown'}) async {
+    // First, check if user is logged in by checking token and user ID
+    String? token = await getToken();
+    bool isLoggedIn = token != null && token.isNotEmpty;
+
+    if (!isLoggedIn) {
+      debugPrint('User is not logged in, cannot connect to MQTT');
+      return false;
+    }
+
     // Track connection source and rate limit connection attempts
     final now = DateTime.now();
     if (_lastConnectionAttempt != null) {
