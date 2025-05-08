@@ -90,15 +90,34 @@ class _HomePageState extends State<HomePage> {
     // Only handle service state changes when login status changes
     if (isLoggedIn != previousLoginState) {
       // Give UI time to update before handling service
-      Future.delayed(Duration(milliseconds: 500), () {
+      Future.delayed(Duration(milliseconds: 500), () async {
         if (isLoggedIn && !previousLoginState) {
-          // User just logged in, service should be started by WillStartForegroundTask
-          print(
-            'Login detected, service should be handled by WillStartForegroundTask',
-          );
+          // User just logged in, start or reconnect MQTT service
+          print('Login detected, ensuring MQTT service is connected');
+
+          try {
+            // Check if service is running
+            bool isRunning = await ForegroundServiceHelper.isServiceRunning();
+
+            if (isRunning) {
+              // Just reconnect MQTT with the new credentials
+              print('Foreground service is running, reconnecting MQTT...');
+              final mqttService = MqttService();
+              await mqttService.connect(source: 'home_after_login');
+            } else {
+              // Start the foreground service
+              print('Foreground service not running, starting...');
+              await _startMqttForegroundService();
+            }
+          } catch (e) {
+            print('Error managing MQTT service after login: $e');
+            // Try starting the service anyway if there was an error
+            await _startMqttForegroundService();
+          }
         } else if (!isLoggedIn && previousLoginState) {
-          // User just logged out, stop the service
-          _stopMqttForegroundService();
+          // User just logged out, disconnect MQTT but keep service running
+          print('Logout detected, disconnecting MQTT');
+          MqttService().disconnect();
         }
       });
     }
