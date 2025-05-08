@@ -184,3 +184,31 @@ class IoTResModel {
     );
   }
 }
+
+class PlantModel {
+  String id;
+  String name;
+  String status;
+
+  PlantModel({required this.id, required this.name, required this.status});
+
+  String getId() {
+    return id;
+  }
+
+  String getName() {
+    return name;
+  }
+
+  String getStatus() {
+    return status;
+  }
+
+  factory PlantModel.fromJson(Map<String, dynamic> json) {
+    return PlantModel(
+      id: json['id'],
+      name: json['name'],
+      status: json['status'],
+    );
+  }
+}

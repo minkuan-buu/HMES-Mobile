@@ -18,6 +18,7 @@ class MqttService {
   String? userId;
   MqttServerClient? _client;
   Function(String message)? onNewNotification; // Callback for new notifications
+  Function(String message)? onRefreshData;
 
   // Refresh management variables
   bool _isRefreshing = false;
