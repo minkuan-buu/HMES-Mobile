@@ -121,8 +121,8 @@ class _TicketState extends State<Ticket> {
                         itemBuilder: (context, index) {
                           final ticket = _ticket[index];
                           return InkWell(
-                            onTap: () {
-                              Navigator.push(
+                            onTap: () async {
+                              final result = await Navigator.push(
                                 this.context,
                                 MaterialPageRoute(
                                   builder:
@@ -132,6 +132,13 @@ class _TicketState extends State<Ticket> {
                                       ),
                                 ),
                               );
+
+                              // Refresh the ticket list when returning from TicketDetail
+                              // in case the ticket status has changed
+                              setState(() {
+                                _isLoading = true;
+                              });
+                              _getTickets();
                             },
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -195,13 +202,21 @@ class _TicketState extends State<Ticket> {
 
       // Nút thêm thiết bị
       floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.push(
+        onPressed: () async {
+          final result = await Navigator.push(
             context,
             MaterialPageRoute(
               builder: (context) => CreateTicket(controller: widget.controller),
             ),
           );
+
+          // Check if the result is true, which means a ticket was created
+          if (result == true) {
+            setState(() {
+              _isLoading = true;
+            });
+            _getTickets();
+          }
         },
         tooltip: 'Thêm thiết bị',
         child: const Icon(Icons.add),
@@ -609,7 +624,9 @@ class _CreateTicketState extends State<CreateTicket> {
           _selectedImages.clear();
           _responseController.clear();
         });
-        Navigator.pop(this.context);
+        // Return to the previous screen after successful submission with result=true
+        // to indicate that a refresh is needed
+        Navigator.pop(this.context, true);
       } else if (response.statusCode == 401) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           Navigator.push(
@@ -806,7 +823,8 @@ class _TicketDetailState extends State<TicketDetail> {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () {
-            Navigator.pop(context);
+            // Return true to indicate the ticket page should refresh
+            Navigator.pop(context, true);
           },
         ),
       ),
@@ -1083,126 +1101,163 @@ class _TicketDetailState extends State<TicketDetail> {
                                 ),
                               ],
                             ),
-                            child: Column(
-                              children: [
-                                // Hiển thị ảnh đính kèm nếu có
-                                if (_selectedImages.isNotEmpty)
-                                  SizedBox(
-                                    height: 90,
-                                    child: ListView.builder(
-                                      scrollDirection: Axis.horizontal,
-                                      itemCount: _selectedImages.length,
-                                      itemBuilder: (context, index) {
-                                        return Stack(
+                            child:
+                                _ticketDetail.status == "InProgress"
+                                    ? Column(
+                                      children: [
+                                        // Hiển thị ảnh đính kèm nếu có
+                                        if (_selectedImages.isNotEmpty)
+                                          SizedBox(
+                                            height: 90,
+                                            child: ListView.builder(
+                                              scrollDirection: Axis.horizontal,
+                                              itemCount: _selectedImages.length,
+                                              itemBuilder: (context, index) {
+                                                return Stack(
+                                                  children: [
+                                                    Container(
+                                                      margin:
+                                                          const EdgeInsets.only(
+                                                            right: 8,
+                                                          ),
+                                                      width: 80,
+                                                      height: 80,
+                                                      decoration: BoxDecoration(
+                                                        borderRadius:
+                                                            BorderRadius.circular(
+                                                              8,
+                                                            ),
+                                                        image: DecorationImage(
+                                                          image: FileImage(
+                                                            File(
+                                                              _selectedImages[index]
+                                                                  .path,
+                                                            ),
+                                                          ),
+                                                          fit: BoxFit.cover,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                    Positioned(
+                                                      top: 2,
+                                                      right: 2,
+                                                      child: GestureDetector(
+                                                        onTap:
+                                                            () => _removeImage(
+                                                              index,
+                                                            ),
+                                                        child:
+                                                            const CircleAvatar(
+                                                              radius: 10,
+                                                              backgroundColor:
+                                                                  Colors
+                                                                      .black54,
+                                                              child: Icon(
+                                                                Icons.close,
+                                                                size: 12,
+                                                                color:
+                                                                    Colors
+                                                                        .white,
+                                                              ),
+                                                            ),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                );
+                                              },
+                                            ),
+                                          ),
+
+                                        const SizedBox(height: 10),
+                                        Row(
                                           children: [
-                                            Container(
-                                              margin: const EdgeInsets.only(
-                                                right: 8,
+                                            IconButton(
+                                              icon: const Icon(
+                                                Icons.attach_file,
                                               ),
-                                              width: 80,
-                                              height: 80,
-                                              decoration: BoxDecoration(
-                                                borderRadius:
-                                                    BorderRadius.circular(8),
-                                                image: DecorationImage(
-                                                  image: FileImage(
-                                                    File(
-                                                      _selectedImages[index]
-                                                          .path,
+                                              onPressed: _pickImages,
+                                            ),
+                                            Expanded(
+                                              child: TextField(
+                                                controller: _responseController,
+                                                decoration: InputDecoration(
+                                                  border:
+                                                      const OutlineInputBorder(),
+                                                  label: Text(
+                                                    'Nhập phản hồi của bạn',
+                                                    style: TextStyle(
+                                                      fontSize:
+                                                          screenWidth * 0.035,
                                                     ),
                                                   ),
-                                                  fit: BoxFit.cover,
                                                 ),
-                                              ),
-                                            ),
-                                            Positioned(
-                                              top: 2,
-                                              right: 2,
-                                              child: GestureDetector(
-                                                onTap:
-                                                    () => _removeImage(index),
-                                                child: const CircleAvatar(
-                                                  radius: 10,
-                                                  backgroundColor:
-                                                      Colors.black54,
-                                                  child: Icon(
-                                                    Icons.close,
-                                                    size: 12,
-                                                    color: Colors.white,
-                                                  ),
-                                                ),
-                                              ),
-                                            ),
-                                          ],
-                                        );
-                                      },
-                                    ),
-                                  ),
 
-                                const SizedBox(height: 10),
-                                Row(
-                                  children: [
-                                    IconButton(
-                                      icon: const Icon(Icons.attach_file),
-                                      onPressed: _pickImages,
-                                    ),
-                                    Expanded(
-                                      child: TextField(
-                                        controller: _responseController,
-                                        decoration: InputDecoration(
-                                          border: const OutlineInputBorder(),
-                                          label: Text(
-                                            'Nhập phản hồi của bạn',
-                                            style: TextStyle(
-                                              fontSize: screenWidth * 0.035,
+                                                style: TextStyle(
+                                                  fontSize: screenWidth * 0.04,
+                                                ),
+                                                onChanged: (value) {
+                                                  setState(() {
+                                                    _responseMessage = value;
+                                                  });
+                                                },
+                                              ),
+                                            ),
+                                            SizedBox(width: screenWidth * 0.02),
+                                            _isResponseSending
+                                                ? const SizedBox(
+                                                  width: 35,
+                                                  height: 35,
+                                                  child:
+                                                      CircularProgressIndicator(),
+                                                )
+                                                : IconButton(
+                                                  color:
+                                                      _responseMessage.isEmpty
+                                                          ? Colors.grey
+                                                          : Colors.blue,
+                                                  icon: const Icon(Icons.send),
+                                                  onPressed: () {
+                                                    if (_responseMessage
+                                                            .isEmpty ||
+                                                        _isResponseSending) {
+                                                      Fluttertoast.showToast(
+                                                        msg:
+                                                            'Vui lòng nhập phản hồi',
+                                                        toastLength:
+                                                            Toast.LENGTH_SHORT,
+                                                        gravity:
+                                                            ToastGravity.BOTTOM,
+                                                        timeInSecForIosWeb: 1,
+                                                        textColor: Colors.black,
+                                                        fontSize: 16.0,
+                                                      );
+                                                      return;
+                                                    }
+                                                    _sendResponse();
+                                                    // Gửi phản hồi
+                                                  },
+                                                ),
+                                          ],
+                                        ),
+                                      ],
+                                    )
+                                    : Padding(
+                                      padding: EdgeInsets.symmetric(
+                                        vertical: 15,
+                                      ),
+                                      child: Center(
+                                        child: Text(
+                                          'Yêu cầu hỗ trợ đã ${getStatusLabel(_ticketDetail.status).toLowerCase()}',
+                                          style: TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w500,
+                                            color: getStatusColor(
+                                              _ticketDetail.status,
                                             ),
                                           ),
                                         ),
-
-                                        style: TextStyle(
-                                          fontSize: screenWidth * 0.04,
-                                        ),
-                                        onChanged: (value) {
-                                          setState(() {
-                                            _responseMessage = value;
-                                          });
-                                        },
                                       ),
                                     ),
-                                    SizedBox(width: screenWidth * 0.02),
-                                    _isResponseSending
-                                        ? const SizedBox(
-                                          width: 35,
-                                          height: 35,
-                                          child: CircularProgressIndicator(),
-                                        )
-                                        : IconButton(
-                                          color:
-                                              _responseMessage.isEmpty
-                                                  ? Colors.grey
-                                                  : Colors.blue,
-                                          icon: const Icon(Icons.send),
-                                          onPressed: () {
-                                            if (_responseMessage.isEmpty ||
-                                                _isResponseSending) {
-                                              Fluttertoast.showToast(
-                                                msg: 'Vui lòng nhập phản hồi',
-                                                toastLength: Toast.LENGTH_SHORT,
-                                                gravity: ToastGravity.BOTTOM,
-                                                timeInSecForIosWeb: 1,
-                                                textColor: Colors.black,
-                                                fontSize: 16.0,
-                                              );
-                                              return;
-                                            }
-                                            _sendResponse();
-                                            // Gửi phản hồi
-                                          },
-                                        ),
-                                  ],
-                                ),
-                              ],
-                            ),
                           ),
                         ],
                       )
@@ -1273,13 +1328,13 @@ class _TicketDetailState extends State<TicketDetail> {
       if (response.statusCode == 200) {
         Fluttertoast.showToast(msg: 'Phản hồi đã được gửi thành công');
         setState(() {
-          _isLoading = false;
           _selectedImages.clear();
           _responseController.clear();
           _responseMessage = ''; // Reset lại message
-          _isLoading = true; // Đặt lại trạng thái tải lại
-          _getTicketDetail();
         });
+
+        // Immediately reload the ticket detail
+        _getTicketDetail();
       } else if (response.statusCode == 401) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           Navigator.push(
