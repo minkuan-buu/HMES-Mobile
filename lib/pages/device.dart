@@ -104,11 +104,15 @@ class _DevicePageState extends State<DevicePage> {
                                               : Colors.red,
                                     ),
                                     const SizedBox(width: 10),
-                                    Text(
-                                      device.getName(),
-                                      style: const TextStyle(
-                                        fontSize: 20,
-                                        fontWeight: FontWeight.bold,
+                                    Expanded(
+                                      child: Text(
+                                        device.getName(),
+                                        style: const TextStyle(
+                                          fontSize: 20,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                        softWrap: true,
+                                        overflow: TextOverflow.visible,
                                       ),
                                     ),
                                   ],
