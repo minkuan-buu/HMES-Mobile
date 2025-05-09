@@ -121,8 +121,8 @@ class _TicketState extends State<Ticket> {
                         itemBuilder: (context, index) {
                           final ticket = _ticket[index];
                           return InkWell(
-                            onTap: () {
-                              Navigator.push(
+                            onTap: () async {
+                              final result = await Navigator.push(
                                 this.context,
                                 MaterialPageRoute(
                                   builder:
@@ -132,6 +132,13 @@ class _TicketState extends State<Ticket> {
                                       ),
                                 ),
                               );
+
+                              // Refresh the ticket list when returning from TicketDetail
+                              // in case the ticket status has changed
+                              setState(() {
+                                _isLoading = true;
+                              });
+                              _getTickets();
                             },
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -195,8 +202,21 @@ class _TicketState extends State<Ticket> {
 
       // Nút thêm thiết bị
       floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          _goToCreateTicket();
+        onPressed: () async {
+          final result = await Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => CreateTicket(controller: widget.controller),
+            ),
+          );
+
+          // Check if the result is true, which means a ticket was created
+          if (result == true) {
+            setState(() {
+              _isLoading = true;
+            });
+            _getTickets();
+          }
         },
         tooltip: 'Thêm thiết bị',
         child: const Icon(Icons.add),
@@ -351,219 +371,214 @@ class _CreateTicketState extends State<CreateTicket> {
           },
         ),
       ),
+      // Wrap the entire body in a SingleChildScrollView to make it scrollable
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Mô tả yêu cầu hỗ trợ',
-              style: TextStyle(
-                fontSize: screenWidth * 0.05,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 10),
-
-            // --- Dropdown chọn loại ---
-            DropdownButtonFormField<String>(
-              value: selectedType,
-              decoration: InputDecoration(
-                labelText: 'Chọn loại yêu cầu hỗ trợ',
-                border: OutlineInputBorder(),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 10,
+        // Add padding to ensure content doesn't get hidden behind keyboard
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom,
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Mô tả yêu cầu hỗ trợ',
+                style: TextStyle(
+                  fontSize: screenWidth * 0.05,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
-              items:
-                  <String>['Mua hàng', 'Kỹ thuật'].map((String value) {
-                    return DropdownMenuItem<String>(
-                      value: value == 'Mua hàng' ? 'Shopping' : 'Technical',
-                      child: Text(value),
-                    );
-                  }).toList(),
-              onChanged: (String? newValue) {
-                setState(() {
-                  selectedType = newValue;
+              const SizedBox(height: 10),
+              DropdownButtonFormField<String>(
+                value: selectedType,
+                decoration: InputDecoration(
+                  labelText: 'Chọn loại yêu cầu hỗ trợ',
+                  border: OutlineInputBorder(), // <-- Đây là khung viền
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
+                ),
+                items:
+                    <String>['Mua hàng', 'Kỹ thuật'].map((String value) {
+                      return DropdownMenuItem<String>(
+                        value: value == 'Mua hàng' ? 'Shopping' : 'Technical',
+                        child: Text(value),
+                      );
+                    }).toList(),
+                onChanged: (String? newValue) {
+                  setState(() {
+                    selectedType = newValue;
+                  });
                   if (newValue == "Technical") {
-                    _isLoadingDevice = true;
-                    _loadDeviceItem();
+                    setState(() {
+                      _isLoadingDevice = true;
+                    });
+                    _loadDeviceItem(); // Gọi hàm tải lại thiết bị
                   }
-                });
-              },
-            ),
-
-            const SizedBox(height: 20),
-
-            if (selectedType == "Technical")
-              _isLoadingDevice
-                  ? const Center(child: CircularProgressIndicator())
-                  : DropdownButtonFormField<String>(
-                    value: selectedDeviceId,
-                    decoration: const InputDecoration(
-                      labelText: 'Chọn thiết bị',
-                      border: OutlineInputBorder(),
-                      contentPadding: EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 10,
+                },
+              ),
+              const SizedBox(height: 20),
+              if (selectedType == "Technical")
+                _isLoadingDevice
+                    ? const Center(child: CircularProgressIndicator())
+                    : DropdownButtonFormField<String>(
+                      value: selectedDeviceId,
+                      decoration: const InputDecoration(
+                        labelText: 'Chọn thiết bị',
+                        border: OutlineInputBorder(),
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
                       ),
+                      items:
+                          _deviceItemTicket?.map((device) {
+                            return DropdownMenuItem<String>(
+                              value: device.id,
+                              child: SizedBox(
+                                width: screenWidth * 0.75,
+                                child: Text(
+                                  "${device.name} - ${device.id}",
+                                  overflow: TextOverflow.ellipsis,
+                                  maxLines: 1,
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                      onChanged: (String? newId) {
+                        setState(() {
+                          selectedDeviceId = newId;
+                        });
+                      },
                     ),
-                    items:
-                        _deviceItemTicket?.map((device) {
-                          return DropdownMenuItem<String>(
-                            value: device.id,
-                            child: SizedBox(
-                              width: screenWidth * 0.75,
-                              child: Text(
-                                "${device.name} - ${device.id}",
-                                overflow: TextOverflow.ellipsis,
-                                maxLines: 1,
+
+              const SizedBox(height: 20),
+              TextField(
+                controller: _responseController,
+                onChanged: (value) {
+                  setState(() {
+                    _ticketDescription = value;
+                  });
+                },
+                maxLines: 3,
+                decoration: InputDecoration(
+                  labelText: 'Nhập mô tả yêu cầu hỗ trợ',
+                  border: OutlineInputBorder(), // <-- Đây là khung viền
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 10,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              if (_selectedImages.isNotEmpty)
+                SizedBox(
+                  height: 90,
+                  child: ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: _selectedImages.length,
+                    itemBuilder: (context, index) {
+                      return Stack(
+                        children: [
+                          Container(
+                            margin: const EdgeInsets.only(right: 8),
+                            width: 80,
+                            height: 80,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(8),
+                              image: DecorationImage(
+                                image: FileImage(
+                                  File(_selectedImages[index].path),
+                                ),
+                                fit: BoxFit.cover,
                               ),
                             ),
-                          );
-                        }).toList(),
-                    onChanged: (String? newId) {
-                      setState(() {
-                        selectedDeviceId = newId;
-                      });
+                          ),
+                          Positioned(
+                            top: 2,
+                            right: 2,
+                            child: GestureDetector(
+                              onTap: () => _removeImage(index),
+                              child: const CircleAvatar(
+                                radius: 10,
+                                backgroundColor: Colors.black54,
+                                child: Icon(
+                                  Icons.close,
+                                  size: 12,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      );
                     },
                   ),
-
-            const SizedBox(height: 20),
-
-            TextField(
-              controller: _responseController,
-              onChanged: (value) {
-                setState(() {
-                  _ticketDescription = value;
-                });
-              },
-              maxLines: 3,
-              decoration: const InputDecoration(
-                labelText: 'Nhập mô tả yêu cầu hỗ trợ',
-                border: OutlineInputBorder(),
-                contentPadding: EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 10,
                 ),
-              ),
-            ),
-
-            const SizedBox(height: 20),
-
-            if (_selectedImages.isNotEmpty)
-              SizedBox(
-                height: 90,
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  shrinkWrap: true,
-                  itemCount: _selectedImages.length,
-                  itemBuilder: (context, index) {
-                    return Stack(
-                      children: [
-                        Container(
-                          margin: const EdgeInsets.only(right: 8),
-                          width: 80,
-                          height: 80,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(8),
-                            image: DecorationImage(
-                              image: FileImage(
-                                File(_selectedImages[index].path),
-                              ),
-                              fit: BoxFit.cover,
-                            ),
-                          ),
-                        ),
-                        Positioned(
-                          top: 2,
-                          right: 2,
-                          child: GestureDetector(
-                            onTap: () => _removeImage(index),
-                            child: const CircleAvatar(
-                              radius: 10,
-                              backgroundColor: Colors.black54,
-                              child: Icon(
-                                Icons.close,
-                                size: 12,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    );
-                  },
-                ),
-              ),
-
-            const SizedBox(height: 20),
-
-            // Nút thêm tệp đính kèm
-            SizedBox(
-              width: double.infinity,
-              height: 50,
-              child: ElevatedButton(
-                onPressed: _pickImages,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF9F7BFF),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-                child: const Text(
-                  'Thêm tệp đính kèm',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w500,
+              const SizedBox(height: 20),
+              ClipRRect(
+                borderRadius: const BorderRadius.all(Radius.circular(10)),
+                child: SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: ElevatedButton(
+                    onPressed: _pickImages,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF9F7BFF),
+                    ),
+                    child: const Text(
+                      'Thêm tệp đính kèm',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
                   ),
                 ),
               ),
-            ),
-
-            const SizedBox(height: 20),
-
-            // Nút gửi yêu cầu
-            SizedBox(
-              width: double.infinity,
-              height: 50,
-              child: ElevatedButton(
-                onPressed: () {
-                  if (_ticketDescription.isEmpty || _isTicketSending) {
-                    Fluttertoast.showToast(
-                      msg: 'Vui lòng nhập mô tả yêu cầu hỗ trợ',
-                      toastLength: Toast.LENGTH_SHORT,
-                      gravity: ToastGravity.BOTTOM,
-                      timeInSecForIosWeb: 1,
-                      textColor: Colors.black,
-                      fontSize: 16.0,
-                    );
-                    return;
-                  }
-                  _sendTicket();
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF9F7BFF),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-                child: const Text(
-                  'Gửi yêu cầu hỗ trợ',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w500,
+              const SizedBox(height: 20),
+              ClipRRect(
+                borderRadius: const BorderRadius.all(Radius.circular(10)),
+                child: SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      if (_ticketDescription.isEmpty || _isTicketSending) {
+                        Fluttertoast.showToast(
+                          msg: 'Vui lòng nhập mô tả yêu cầu hỗ trợ',
+                          toastLength: Toast.LENGTH_SHORT,
+                          gravity: ToastGravity.BOTTOM,
+                          timeInSecForIosWeb: 1,
+                          textColor: Colors.black,
+                          fontSize: 16.0,
+                        );
+                        return;
+                      }
+                      _sendTicket();
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF9F7BFF),
+                    ),
+                    child: const Text(
+                      'Gửi yêu cầu hỗ trợ',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
                   ),
                 ),
               ),
-            ),
-            const SizedBox(
-              height: 30,
-            ), // khoảng cách tránh nút bị dính bàn phím
-          ],
+              // Add padding at the bottom to ensure content is not hidden by keyboard
+              SizedBox(height: 20),
+            ],
+          ),
         ),
       ),
     );
@@ -627,7 +642,9 @@ class _CreateTicketState extends State<CreateTicket> {
           _selectedImages.clear();
           _responseController.clear();
         });
-        Navigator.pop(this.context);
+        // Return to the previous screen after successful submission with result=true
+        // to indicate that a refresh is needed
+        Navigator.pop(this.context, true);
       } else if (response.statusCode == 401) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           Navigator.push(
@@ -824,7 +841,8 @@ class _TicketDetailState extends State<TicketDetail> {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () {
-            Navigator.pop(context);
+            // Return true to indicate the ticket page should refresh
+            Navigator.pop(context, true);
           },
         ),
       ),
@@ -1109,128 +1127,163 @@ class _TicketDetailState extends State<TicketDetail> {
                                 ),
                               ],
                             ),
-                            child: Column(
-                              children: [
-                                // Hiển thị ảnh đính kèm nếu có
-                                if (_selectedImages.isNotEmpty)
-                                  SizedBox(
-                                    height: 90,
-                                    child: ListView.builder(
-                                      scrollDirection: Axis.horizontal,
-                                      itemCount: _selectedImages.length,
-                                      itemBuilder: (context, index) {
-                                        return Stack(
+                            child:
+                                _ticketDetail.status == "InProgress"
+                                    ? Column(
+                                      children: [
+                                        // Hiển thị ảnh đính kèm nếu có
+                                        if (_selectedImages.isNotEmpty)
+                                          SizedBox(
+                                            height: 90,
+                                            child: ListView.builder(
+                                              scrollDirection: Axis.horizontal,
+                                              itemCount: _selectedImages.length,
+                                              itemBuilder: (context, index) {
+                                                return Stack(
+                                                  children: [
+                                                    Container(
+                                                      margin:
+                                                          const EdgeInsets.only(
+                                                            right: 8,
+                                                          ),
+                                                      width: 80,
+                                                      height: 80,
+                                                      decoration: BoxDecoration(
+                                                        borderRadius:
+                                                            BorderRadius.circular(
+                                                              8,
+                                                            ),
+                                                        image: DecorationImage(
+                                                          image: FileImage(
+                                                            File(
+                                                              _selectedImages[index]
+                                                                  .path,
+                                                            ),
+                                                          ),
+                                                          fit: BoxFit.cover,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                    Positioned(
+                                                      top: 2,
+                                                      right: 2,
+                                                      child: GestureDetector(
+                                                        onTap:
+                                                            () => _removeImage(
+                                                              index,
+                                                            ),
+                                                        child:
+                                                            const CircleAvatar(
+                                                              radius: 10,
+                                                              backgroundColor:
+                                                                  Colors
+                                                                      .black54,
+                                                              child: Icon(
+                                                                Icons.close,
+                                                                size: 12,
+                                                                color:
+                                                                    Colors
+                                                                        .white,
+                                                              ),
+                                                            ),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                );
+                                              },
+                                            ),
+                                          ),
+
+                                        const SizedBox(height: 10),
+                                        Row(
                                           children: [
-                                            Container(
-                                              margin: const EdgeInsets.only(
-                                                right: 8,
+                                            IconButton(
+                                              icon: const Icon(
+                                                Icons.attach_file,
                                               ),
-                                              width: 80,
-                                              height: 80,
-                                              decoration: BoxDecoration(
-                                                borderRadius:
-                                                    BorderRadius.circular(8),
-                                                image: DecorationImage(
-                                                  image: FileImage(
-                                                    File(
-                                                      _selectedImages[index]
-                                                          .path,
+                                              onPressed: _pickImages,
+                                            ),
+                                            Expanded(
+                                              child: TextField(
+                                                controller: _responseController,
+                                                decoration: InputDecoration(
+                                                  border:
+                                                      const OutlineInputBorder(),
+                                                  label: Text(
+                                                    'Nhập phản hồi của bạn',
+                                                    style: TextStyle(
+                                                      fontSize:
+                                                          screenWidth * 0.035,
                                                     ),
                                                   ),
-                                                  fit: BoxFit.cover,
                                                 ),
-                                              ),
-                                            ),
-                                            Positioned(
-                                              top: 2,
-                                              right: 2,
-                                              child: GestureDetector(
-                                                onTap:
-                                                    () => _removeImage(index),
-                                                child: const CircleAvatar(
-                                                  radius: 10,
-                                                  backgroundColor:
-                                                      Colors.black54,
-                                                  child: Icon(
-                                                    Icons.close,
-                                                    size: 12,
-                                                    color: Colors.white,
-                                                  ),
-                                                ),
-                                              ),
-                                            ),
-                                          ],
-                                        );
-                                      },
-                                    ),
-                                  ),
 
-                                const SizedBox(height: 10),
-                                Row(
-                                  children: [
-                                    IconButton(
-                                      icon: const Icon(Icons.attach_file),
-                                      onPressed:
-                                          [
-                                                "Closed",
-                                                "Done",
-                                                "Pending",
-                                              ].contains(_ticketDetail.status)
-                                              ? null
-                                              : _pickImages,
-                                    ),
-                                    Expanded(
-                                      child: TextField(
-                                        controller: _responseController,
-                                        enabled:
-                                            _ticketDetail.status != "Closed" &&
-                                            _ticketDetail.status != "Done" &&
-                                            _ticketDetail.status != "Pending",
-                                        decoration: InputDecoration(
-                                          border: const OutlineInputBorder(),
-                                          label: Text(
-                                            'Nhập phản hồi của bạn',
-                                            style: TextStyle(
-                                              fontSize: screenWidth * 0.035,
+                                                style: TextStyle(
+                                                  fontSize: screenWidth * 0.04,
+                                                ),
+                                                onChanged: (value) {
+                                                  setState(() {
+                                                    _responseMessage = value;
+                                                  });
+                                                },
+                                              ),
+                                            ),
+                                            SizedBox(width: screenWidth * 0.02),
+                                            _isResponseSending
+                                                ? const SizedBox(
+                                                  width: 35,
+                                                  height: 35,
+                                                  child:
+                                                      CircularProgressIndicator(),
+                                                )
+                                                : IconButton(
+                                                  color:
+                                                      _responseMessage.isEmpty
+                                                          ? Colors.grey
+                                                          : Colors.blue,
+                                                  icon: const Icon(Icons.send),
+                                                  onPressed: () {
+                                                    if (_responseMessage
+                                                            .isEmpty ||
+                                                        _isResponseSending) {
+                                                      Fluttertoast.showToast(
+                                                        msg:
+                                                            'Vui lòng nhập phản hồi',
+                                                        toastLength:
+                                                            Toast.LENGTH_SHORT,
+                                                        gravity:
+                                                            ToastGravity.BOTTOM,
+                                                        timeInSecForIosWeb: 1,
+                                                        textColor: Colors.black,
+                                                        fontSize: 16.0,
+                                                      );
+                                                      return;
+                                                    }
+                                                    _sendResponse();
+                                                    // Gửi phản hồi
+                                                  },
+                                                ),
+                                          ],
+                                        ),
+                                      ],
+                                    )
+                                    : Padding(
+                                      padding: EdgeInsets.symmetric(
+                                        vertical: 15,
+                                      ),
+                                      child: Center(
+                                        child: Text(
+                                          'Yêu cầu hỗ trợ đã ${getStatusLabel(_ticketDetail.status).toLowerCase()}',
+                                          style: TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w500,
+                                            color: getStatusColor(
+                                              _ticketDetail.status,
                                             ),
                                           ),
                                         ),
-
-                                        style: TextStyle(
-                                          fontSize: screenWidth * 0.04,
-                                        ),
-                                        onChanged: (value) {
-                                          setState(() {
-                                            _responseMessage = value;
-                                          });
-                                        },
                                       ),
                                     ),
-                                    SizedBox(width: screenWidth * 0.02),
-                                    _isResponseSending
-                                        ? const SizedBox(
-                                          width: 35,
-                                          height: 35,
-                                          child: CircularProgressIndicator(),
-                                        )
-                                        : IconButton(
-                                          color:
-                                              _responseMessage.isEmpty
-                                                  ? Colors.grey
-                                                  : Colors.blue,
-                                          icon: const Icon(Icons.send),
-                                          onPressed:
-                                              _responseMessage.isEmpty ||
-                                                      _isResponseSending
-                                                  ? null // Vô hiệu hóa nếu không có phản hồi hoặc đang gửi
-                                                  : () {
-                                                    _sendResponse();
-                                                  },
-                                        ),
-                                  ],
-                                ),
-                              ],
-                            ),
                           ),
                         ],
                       )
@@ -1301,13 +1354,13 @@ class _TicketDetailState extends State<TicketDetail> {
       if (response.statusCode == 200) {
         Fluttertoast.showToast(msg: 'Phản hồi đã được gửi thành công');
         setState(() {
-          _isLoading = false;
           _selectedImages.clear();
           _responseController.clear();
           _responseMessage = ''; // Reset lại message
-          _isLoading = true; // Đặt lại trạng thái tải lại
-          _getTicketDetail();
         });
+
+        // Immediately reload the ticket detail
+        _getTicketDetail();
       } else if (response.statusCode == 401) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           Navigator.push(

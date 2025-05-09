@@ -495,6 +495,8 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
                                         color: Colors.white,
                                         fontStyle: FontStyle.italic,
                                       ),
+                                      overflow: TextOverflow.ellipsis,
+                                      maxLines: 1,
                                     ),
                                   ),
                                 ],
@@ -547,11 +549,17 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
                                                   color: Colors.white,
                                                 ),
                                               ),
-                                              Text(
-                                                _deviceItem?.serial ?? '',
-                                                style: TextStyle(
-                                                  fontSize: screenWidth * 0.045,
-                                                  color: Colors.white,
+                                              Flexible(
+                                                child: Text(
+                                                  _deviceItem?.serial ?? '',
+                                                  style: TextStyle(
+                                                    fontSize:
+                                                        screenWidth * 0.045,
+                                                    color: Colors.white,
+                                                  ),
+                                                  textAlign: TextAlign.right,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
                                                 ),
                                               ),
                                             ],
@@ -584,11 +592,17 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
                                                   color: Colors.white,
                                                 ),
                                               ),
-                                              Text(
-                                                _deviceItem?.type ?? '',
-                                                style: TextStyle(
-                                                  fontSize: screenWidth * 0.045,
-                                                  color: Colors.white,
+                                              Flexible(
+                                                child: Text(
+                                                  _deviceItem?.type ?? '',
+                                                  style: TextStyle(
+                                                    fontSize:
+                                                        screenWidth * 0.045,
+                                                    color: Colors.white,
+                                                  ),
+                                                  textAlign: TextAlign.right,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
                                                 ),
                                               ),
                                             ],
@@ -621,13 +635,20 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
                                                   color: Colors.white,
                                                 ),
                                               ),
-                                              Text(
-                                                (_deviceItem?.isOnline ?? false)
-                                                    ? 'Có'
-                                                    : 'Không',
-                                                style: TextStyle(
-                                                  fontSize: screenWidth * 0.045,
-                                                  color: Colors.white,
+                                              Flexible(
+                                                child: Text(
+                                                  (_deviceItem?.isOnline ??
+                                                          false)
+                                                      ? 'Có'
+                                                      : 'Không',
+                                                  style: TextStyle(
+                                                    fontSize:
+                                                        screenWidth * 0.045,
+                                                    color: Colors.white,
+                                                  ),
+                                                  textAlign: TextAlign.right,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
                                                 ),
                                               ),
                                             ],
@@ -660,16 +681,22 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
                                                   color: Colors.white,
                                                 ),
                                               ),
-                                              Text(
-                                                (_deviceItem
-                                                            ?.plantName
-                                                            ?.isEmpty ??
-                                                        true)
-                                                    ? 'Không có'
-                                                    : _deviceItem!.plantName,
-                                                style: TextStyle(
-                                                  fontSize: screenWidth * 0.045,
-                                                  color: Colors.white,
+                                              Flexible(
+                                                child: Text(
+                                                  (_deviceItem
+                                                              ?.plantName
+                                                              ?.isEmpty ??
+                                                          true)
+                                                      ? 'Không có'
+                                                      : _deviceItem!.plantName,
+                                                  style: TextStyle(
+                                                    fontSize:
+                                                        screenWidth * 0.045,
+                                                    color: Colors.white,
+                                                  ),
+                                                  textAlign: TextAlign.right,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
                                                 ),
                                               ),
                                             ],
@@ -702,17 +729,23 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
                                                   color: Colors.white,
                                                 ),
                                               ),
-                                              Text(
-                                                _deviceItem?.warrantyExpiryDate !=
-                                                        null
-                                                    ? formatDate(
-                                                      _deviceItem!
-                                                          .warrantyExpiryDate!,
-                                                    )
-                                                    : 'N/A',
-                                                style: TextStyle(
-                                                  fontSize: screenWidth * 0.045,
-                                                  color: Colors.white,
+                                              Flexible(
+                                                child: Text(
+                                                  _deviceItem?.warrantyExpiryDate !=
+                                                          null
+                                                      ? formatDate(
+                                                        _deviceItem!
+                                                            .warrantyExpiryDate!,
+                                                      )
+                                                      : 'N/A',
+                                                  style: TextStyle(
+                                                    fontSize:
+                                                        screenWidth * 0.045,
+                                                    color: Colors.white,
+                                                  ),
+                                                  textAlign: TextAlign.right,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
                                                 ),
                                               ),
                                             ],
@@ -781,10 +814,6 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
                                                   message,
                                                 ) {
                                                   refreshData(message);
-                                                  setState(() {
-                                                    _isButtonRefreshing =
-                                                        false; // Kết thúc refresh
-                                                  });
                                                 };
 
                                                 mqttService.sendRefreshSignal(
@@ -923,6 +952,22 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
   }
 
   Future<void> refreshData(String message) async {
+    // Return early if message is empty (timeout case)
+    if (message.isEmpty) {
+      setState(() {
+        _isButtonRefreshing = false;
+      });
+      Fluttertoast.showToast(
+        msg: 'Không có dữ liệu mới',
+        toastLength: Toast.LENGTH_SHORT,
+        gravity: ToastGravity.BOTTOM,
+        timeInSecForIosWeb: 1,
+        textColor: Colors.black,
+        fontSize: 16.0,
+      );
+      return;
+    }
+
     try {
       // Parse data to json
       Map<String, dynamic> jsonData = jsonDecode(message);
@@ -933,25 +978,35 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
           jsonData.containsKey('soluteConcentration') ||
           jsonData.containsKey('temperature') ||
           jsonData.containsKey('waterLevel')) {
-        // Update the device's IoT data
+        // Update the device's IoT data with proper type conversion
         setState(() {
-          _deviceItem?.ioTData?.ph = (jsonData['ph'] ?? 0).toDouble();
+          // Ensure values are converted to double
+          _deviceItem?.ioTData?.ph =
+              jsonData['ph'] != null
+                  ? double.parse(jsonData['ph'].toString())
+                  : _deviceItem?.ioTData?.ph ?? 0.0;
+
           _deviceItem?.ioTData?.soluteConcentration =
-              (jsonData['soluteConcentration'] ?? 0).toDouble();
+              jsonData['soluteConcentration'] != null
+                  ? double.parse(jsonData['soluteConcentration'].toString())
+                  : _deviceItem?.ioTData?.soluteConcentration ?? 0.0;
+
           _deviceItem?.ioTData?.temperature =
-              (jsonData['temperature'] ?? 0).toDouble();
-          _deviceItem?.ioTData?.waterLevel = jsonData['waterLevel'] ?? 0;
-          _deviceItem?.lastUpdatedDate = DateTime.now(); // Cập nhật thời gian
+              jsonData['temperature'] != null
+                  ? double.parse(jsonData['temperature'].toString())
+                  : _deviceItem?.ioTData?.temperature ?? 0.0;
+
+          _deviceItem?.ioTData?.waterLevel =
+              jsonData['waterLevel'] != null
+                  ? int.parse(jsonData['waterLevel'].toString())
+                  : _deviceItem?.ioTData?.waterLevel ?? 0;
+
+          // Update last updated date
+          _deviceItem?.lastUpdatedDate = DateTime.now();
         });
 
-        Fluttertoast.showToast(
-          msg: 'Đã cập nhật dữ liệu',
-          toastLength: Toast.LENGTH_SHORT,
-          gravity: ToastGravity.BOTTOM,
-          timeInSecForIosWeb: 1,
-          textColor: Colors.black,
-          fontSize: 16.0,
-        );
+        // Send the new data to the server
+        await _sendIoTDataToServer(jsonData);
       } else {
         // This is likely a notification, not a refresh response - ignore for refresh purposes
         debugPrint(
@@ -973,6 +1028,82 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
       setState(() {
         _isButtonRefreshing = false;
       });
+    }
+  }
+
+  // New method to send IoT data to server
+  Future<void> _sendIoTDataToServer(Map<String, dynamic> jsonData) async {
+    String token = (await getToken()).toString();
+    String refreshToken = (await getRefreshToken()).toString();
+    String deviceId = (await getDeviceId()).toString();
+
+    if (!mounted) return;
+
+    try {
+      final response = await http.post(
+        Uri.parse('${apiUrl}user/me/mobile/devices/${widget.deviceId}'),
+        headers: <String, String>{
+          'Content-Type': 'application/json; charset=UTF-8',
+          'Cookie': 'DeviceId=$deviceId; RefreshToken=$refreshToken',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode(jsonData),
+      );
+
+      String? newAccessToken = response.headers['new-access-token'];
+      if (newAccessToken != null) {
+        await updateToken(newAccessToken);
+      }
+
+      if (!mounted) return;
+
+      if (response.statusCode == 200) {
+        Fluttertoast.showToast(
+          msg: 'Đã cập nhật dữ liệu',
+          toastLength: Toast.LENGTH_SHORT,
+          gravity: ToastGravity.BOTTOM,
+          timeInSecForIosWeb: 1,
+          textColor: Colors.black,
+          fontSize: 16.0,
+        );
+      } else if (response.statusCode == 401) {
+        if (mounted) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => Logout(controller: widget.controller),
+              ),
+            );
+          });
+        }
+      } else {
+        Map<String, dynamic> responseJson = jsonDecode(response.body);
+        String getDeviceStatus = responseJson['message'];
+
+        if (mounted) {
+          Fluttertoast.showToast(
+            msg: getDeviceStatus,
+            toastLength: Toast.LENGTH_SHORT,
+            gravity: ToastGravity.BOTTOM,
+            timeInSecForIosWeb: 1,
+            textColor: Colors.black,
+            fontSize: 16.0,
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        Fluttertoast.showToast(
+          msg: 'Không thể cập nhật dữ liệu lên máy chủ',
+          toastLength: Toast.LENGTH_SHORT,
+          gravity: ToastGravity.BOTTOM,
+          timeInSecForIosWeb: 1,
+          textColor: Colors.black,
+          fontSize: 16.0,
+        );
+      }
+      debugPrint("Error sending IoT data to server: $e");
     }
   }
 

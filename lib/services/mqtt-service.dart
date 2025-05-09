@@ -423,7 +423,7 @@ class MqttService {
           debugPrint('Received message on refresh response topic: $payload');
 
           try {
-            // Call onNewNotification with the response payload only if it's a valid refresh response
+            // Call onRefreshData with the response payload only if it's a valid refresh response
             // This will update the UI with the new data
             if (onRefreshData != null && payload.isNotEmpty) {
               onRefreshData!(payload);
@@ -461,7 +461,7 @@ class MqttService {
             debugPrint('Refresh response timeout after 30 seconds');
 
             // Call with empty string to indicate timeout
-            onNewNotification?.call('');
+            onRefreshData?.call('');
 
             // Clean up
             _client!.unsubscribe(responseTopic);
