@@ -18,6 +18,15 @@ class NotificationService {
   final notificationPlugin = FlutterLocalNotificationsPlugin();
   bool _isInitialized = false;
 
+  // Track processed notification IDs to prevent duplicates
+  final Set<String> _processedNotificationIds = {};
+  static const int _maxProcessedIds = 100;
+
+  // Track the last notification time to prevent rapid duplicates
+  DateTime? _lastNotificationTime;
+  static const int _minNotificationIntervalMs =
+      500; // Minimum 500ms between notifications
+
   bool get isInitialized => _isInitialized;
 
   Future<void> initNotification() async {
@@ -87,6 +96,30 @@ class NotificationService {
       await initNotification();
     }
 
+    // Create a notification ID to track this specific notification
+    final notificationId = '${title}-${body}';
+
+    // Check if we've already shown this notification recently
+    // if (_processedNotificationIds.contains(notificationId)) {
+    //   debugPrint('Skipping duplicate notification: $notificationId');
+    //   return;
+    // }
+
+    // Rate limit notifications
+    final now = DateTime.now();
+    if (_lastNotificationTime != null) {
+      final timeSinceLastNotification = now.difference(_lastNotificationTime!);
+      if (timeSinceLastNotification.inMilliseconds <
+          _minNotificationIntervalMs) {
+        debugPrint('Rate limiting notification, too soon after previous one');
+        return;
+      }
+    }
+    _lastNotificationTime = now;
+
+    // Add to tracking set
+    _trackProcessedNotification(notificationId);
+
     debugPrint('Showing notification - Title: $title, Body: $body');
 
     try {
@@ -101,6 +134,19 @@ class NotificationService {
     } catch (e) {
       debugPrint('Error showing notification: $e');
       rethrow;
+    }
+  }
+
+  // Track notification IDs to prevent duplicates
+  void _trackProcessedNotification(String notificationId) {
+    _processedNotificationIds.add(notificationId);
+
+    // Keep the set at a reasonable size
+    if (_processedNotificationIds.length > _maxProcessedIds) {
+      final toRemove = _processedNotificationIds.length - _maxProcessedIds;
+      _processedNotificationIds.toList().sublist(0, toRemove).forEach((id) {
+        _processedNotificationIds.remove(id);
+      });
     }
   }
 
@@ -176,6 +222,37 @@ class NotificationService {
     return response.statusCode == 200;
   }
 
+  // Decode Unicode escape sequences in JSON strings
+  String decodeUnicodeEscapes(String input) {
+    try {
+      // First decode the JSON string to handle \u0022 (double quote) escapes
+      final decoded = json.decode(input);
+
+      // If the input is already a Map, return it as JSON string
+      if (decoded is Map) {
+        return json.encode(decoded);
+      }
+
+      // For string inputs with nested Unicode escapes
+      if (decoded is String) {
+        // Try to parse if the string itself is a JSON
+        try {
+          final nestedJson = json.decode(decoded);
+          return json.encode(nestedJson);
+        } catch (_) {
+          // Not a valid JSON string, just return the decoded string
+          return decoded;
+        }
+      }
+
+      // Return the original decoded object as JSON
+      return json.encode(decoded);
+    } catch (e) {
+      debugPrint('Error decoding Unicode escapes: $e');
+      return input; // Return original if decoding fails
+    }
+  }
+
   // Process MQTT notification message
   Future<void> processMqttNotification(String message) async {
     if (!_isInitialized) {
@@ -183,19 +260,64 @@ class NotificationService {
     }
 
     try {
-      final Map<String, dynamic> notificationData = jsonDecode(message);
+      // Decode Unicode escapes before parsing
+      final decodedMessage = decodeUnicodeEscapes(message);
+      Map<String, dynamic> notificationData;
+
+      try {
+        // Try to parse the decoded message as JSON
+        notificationData = json.decode(decodedMessage);
+      } catch (e) {
+        // If decoding fails, the message might be a simple string
+        // In this case, create a default notification data structure
+        debugPrint('Failed to parse notification data as JSON: $e');
+        notificationData = {
+          'title': 'Thông báo mới',
+          'message': decodedMessage,
+        };
+      }
 
       // Extract notification details from the message
-      final String title = notificationData['title'] ?? 'New Notification';
+      final String title = notificationData['title'] ?? 'Thông báo mới';
       final String body = notificationData['message'] ?? '';
+
+      // Create a simple ID for this notification - no need for timestamp for better deduplication
+      final String notificationId = '$title-$body';
+
+      // Skip if we've already processed this notification recently
+      // if (_processedNotificationIds.contains(notificationId)) {
+      //   debugPrint('Skipping duplicate MQTT notification: $notificationId');
+      //   return;
+      // }
+
+      // Rate limit notifications
+      final now = DateTime.now();
+      if (_lastNotificationTime != null) {
+        final timeSinceLastNotification = now.difference(
+          _lastNotificationTime!,
+        );
+        if (timeSinceLastNotification.inMilliseconds <
+            _minNotificationIntervalMs) {
+          debugPrint(
+            'Rate limiting MQTT notification, too soon after previous one',
+          );
+          return;
+        }
+      }
+
+      // Track this notification to prevent duplicates
+      _trackProcessedNotification(notificationId);
+      _lastNotificationTime = now;
 
       // Show local notification
       await showNotification(
         id: DateTime.now().millisecondsSinceEpoch.remainder(100000),
         title: title,
         body: body,
-        payload: message,
+        payload: decodedMessage,
       );
+
+      debugPrint('MQTT notification processed: $title');
     } catch (e) {
       debugPrint('Error processing MQTT notification: $e');
     }
