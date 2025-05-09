@@ -1,6 +1,7 @@
 class DeviceModel {
   String id;
   String name;
+  String serial;
   String description;
   String attachment;
   bool isActive;
@@ -9,6 +10,7 @@ class DeviceModel {
   DeviceModel({
     required this.id,
     required this.name,
+    required this.serial,
     required this.description,
     required this.attachment,
     required this.isActive,
@@ -21,6 +23,10 @@ class DeviceModel {
 
   String getName() {
     return name;
+  }
+
+  String getSerial() {
+    return serial;
   }
 
   String getDescription() {
@@ -43,6 +49,7 @@ class DeviceModel {
     return DeviceModel(
       id: json['id'],
       name: json['name'],
+      serial: json['serial'] ?? '',
       description: json['description'] ?? '',
       attachment: json['attachment'] ?? '',
       isActive: json['isActive'],
@@ -209,6 +216,84 @@ class PlantModel {
       id: json['id'],
       name: json['name'],
       status: json['status'],
+    );
+  }
+}
+
+class HistoryLogModel {
+  String deviceItemId;
+  String deviceItemName;
+  List<IoTHistoryResModel>? ioTData;
+
+  HistoryLogModel({
+    required this.deviceItemId,
+    required this.deviceItemName,
+    required this.ioTData,
+  });
+
+  factory HistoryLogModel.fromJson(Map<String, dynamic> json) {
+    return HistoryLogModel(
+      deviceItemId: json['deviceItemId'],
+      deviceItemName: json['deviceItemName'],
+      ioTData:
+          json['ioTData'] != null
+              ? (json['ioTData'] as List)
+                  .map((item) => IoTHistoryResModel.fromJson(item))
+                  .toList()
+              : null,
+    );
+  }
+}
+
+class IoTHistoryResModel {
+  String nutrionId;
+  double soluteConcentration;
+  double temperature;
+  double ph;
+  int waterLevel;
+  DateTime createdAt;
+
+  IoTHistoryResModel({
+    required this.nutrionId,
+    required this.soluteConcentration,
+    required this.temperature,
+    required this.ph,
+    required this.waterLevel,
+    required this.createdAt,
+  });
+
+  String getNutrionId() {
+    return nutrionId;
+  }
+
+  double getSoluteConcentration() {
+    return soluteConcentration;
+  }
+
+  double getTemperature() {
+    return temperature;
+  }
+
+  double getPh() {
+    return ph;
+  }
+
+  int getWaterLevel() {
+    return waterLevel;
+  }
+
+  DateTime getCreatedAt() {
+    return createdAt;
+  }
+
+  factory IoTHistoryResModel.fromJson(Map<String, dynamic> json) {
+    return IoTHistoryResModel(
+      nutrionId: json['nutrionId'],
+      soluteConcentration: json['soluteConcentration']?.toDouble() ?? 0,
+      temperature: json['temperature']?.toDouble() ?? 0,
+      ph: json['ph']?.toDouble() ?? 0.0,
+      waterLevel: (json['waterLevel'] ?? 0).round(),
+      createdAt: DateTime.parse(json['createdAt']).toLocal(),
     );
   }
 }
