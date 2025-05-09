@@ -149,7 +149,7 @@ class _TicketState extends State<Ticket> {
                                       child: Text(
                                         ticket.getBriefDescription(),
                                         style: const TextStyle(
-                                          fontSize: 20,
+                                          fontSize: 18,
                                           fontWeight: FontWeight.bold,
                                         ),
                                       ),
@@ -222,6 +222,23 @@ class _TicketState extends State<Ticket> {
         child: const Icon(Icons.add),
       ),
     );
+  }
+
+  void _goToCreateTicket() {
+    final result = Navigator.push(
+      this.context,
+      MaterialPageRoute(
+        builder: (context) => CreateTicket(controller: widget.controller),
+      ),
+    );
+    result.then((value) {
+      if (value != null && value == true) {
+        setState(() {
+          _isLoading = true; // Đặt trạng thái tải lại
+        });
+        _getTickets(); // Gọi hàm tải lại thiết bị
+      }
+    });
   }
 
   Future<void> _getTickets() async {
@@ -344,12 +361,13 @@ class _CreateTicketState extends State<CreateTicket> {
     double screenWidth = MediaQuery.of(context).size.width;
     double screenHeight = MediaQuery.of(context).size.height;
     return Scaffold(
+      resizeToAvoidBottomInset: true, // Cho phép body co lại khi bàn phím hiện
       appBar: AppBar(
         title: Text('Tạo yêu cầu hỗ trợ'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () {
-            Navigator.pop(context);
+            Navigator.pop(context, true);
           },
         ),
       ),
@@ -885,7 +903,15 @@ class _TicketDetailState extends State<TicketDetail> {
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
-                                const SizedBox(height: 10),
+                                _ticketDetail.type == "Technical"
+                                    ? Text(
+                                      'Serial: ${_ticketDetail.deviceItemSerial}',
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    )
+                                    : const SizedBox(),
                                 Text(
                                   'Thời gian tạo phiếu hỗ trợ: ${formatDateTime(_ticketDetail.createdAt)}',
                                   style: const TextStyle(
