@@ -425,8 +425,8 @@ class MqttService {
           try {
             // Call onNewNotification with the response payload only if it's a valid refresh response
             // This will update the UI with the new data
-            if (onNewNotification != null && payload.isNotEmpty) {
-              onNewNotification!(payload);
+            if (onRefreshData != null && payload.isNotEmpty) {
+              onRefreshData!(payload);
               debugPrint('Processed refresh response successfully');
             }
 
