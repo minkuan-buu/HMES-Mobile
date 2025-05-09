@@ -441,7 +441,7 @@ class _CreateTicketState extends State<CreateTicket> {
                               child: SizedBox(
                                 width: screenWidth * 0.75,
                                 child: Text(
-                                  "${device.name} - ${device.id}",
+                                  "${device.serial} - ${device.isActive ? "Đã kích hoạt" : "Chưa kích hoạt"}",
                                   overflow: TextOverflow.ellipsis,
                                   maxLines: 1,
                                 ),
