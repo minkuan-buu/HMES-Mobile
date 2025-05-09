@@ -64,6 +64,7 @@ class TicketDetailModel {
   String id;
   String userFullName;
   String description;
+  String? deviceItemSerial;
   String type;
   String? deviceItemId;
   List<String?> attachments;
@@ -79,6 +80,7 @@ class TicketDetailModel {
     required this.description,
     required this.type,
     required this.deviceItemId,
+    required this.deviceItemSerial,
     required this.attachments,
     required this.status,
     required this.createdBy,
@@ -97,6 +99,10 @@ class TicketDetailModel {
 
   String getDescription() {
     return description;
+  }
+
+  String? getDeviceItemSerial() {
+    return deviceItemSerial;
   }
 
   String getType() {
@@ -172,6 +178,7 @@ class TicketDetailModel {
       id: json['id'] as String,
       userFullName: json['userFullName'] as String,
       description: json['description'] as String,
+      deviceItemSerial: json['deviceItemSerial'] as String?, // có thể null
       type: json['type'] as String,
       deviceItemId: json['deviceItemId'] as String?, // có thể null
       // Xử lý an toàn nếu attachments là null hoặc không phải danh sách
@@ -241,14 +248,16 @@ class TicketReponseModel {
 class DeviceItemTicket {
   String id;
   String name;
-  bool isAcive;
+  String serial;
+  bool isActive;
   bool isOnline;
   String status;
 
   DeviceItemTicket({
     required this.id,
     required this.name,
-    required this.isAcive,
+    required this.serial,
+    required this.isActive,
     required this.isOnline,
     required this.status,
   });
@@ -257,7 +266,8 @@ class DeviceItemTicket {
     return DeviceItemTicket(
       id: json['id'] as String,
       name: json['name'] as String,
-      isAcive: json['isActive'] as bool,
+      serial: json['serial'] as String,
+      isActive: json['isActive'] as bool,
       isOnline: json['isOnline'] as bool,
       status: json['status'] as String,
     );
