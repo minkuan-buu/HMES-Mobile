@@ -65,6 +65,7 @@ class DeviceItemModel {
   String plantName;
   bool isOnline;
   String serial;
+  List<phaseResModel>? phases;
   IoTResModel? ioTData;
   DateTime? warrantyExpiryDate;
   DateTime? lastUpdatedDate;
@@ -130,6 +131,14 @@ class DeviceItemModel {
     refreshCycleHours = hours;
   }
 
+  void setPhases(List<phaseResModel> phases) {
+    this.phases = phases;
+  }
+
+  List<phaseResModel>? getPhases() {
+    return phases;
+  }
+
   factory DeviceItemModel.fromJson(Map<String, dynamic> json) {
     return DeviceItemModel(
       deviceItemId: json['deviceItemId'],
@@ -149,6 +158,49 @@ class DeviceItemModel {
               ? DateTime.parse(json['lastUpdatedDate'])
                   .toLocal() // ✅ Chuyển về giờ địa phương
               : null,
+    );
+  }
+}
+
+class phaseResModel {
+  String id;
+  String phaseName;
+  bool isDefault;
+  bool isSelected;
+
+  phaseResModel({
+    required this.id,
+    required this.phaseName,
+    required this.isDefault,
+    required this.isSelected,
+  });
+
+  String getId() {
+    return id;
+  }
+
+  String getPhaseName() {
+    return phaseName;
+  }
+
+  bool getIsDefault() {
+    return isDefault;
+  }
+
+  bool getIsSelected() {
+    return isSelected;
+  }
+
+  void setIsSelected(bool isSelected) {
+    this.isSelected = isSelected;
+  }
+
+  factory phaseResModel.fromJson(Map<String, dynamic> json) {
+    return phaseResModel(
+      id: json['id'],
+      phaseName: json['phaseName'],
+      isDefault: json['isDefault'],
+      isSelected: json['isSelected'] ?? false,
     );
   }
 }

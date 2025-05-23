@@ -283,6 +283,14 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
   bool hasNewData = false;
   DeviceItemModel? _deviceItem;
   int selectedOption = 5; // Default value for the dropdown
+  List<phaseResModel>? phaseRes;
+  var dropdownItems = [];
+  var customOptionValue = '__custom__';
+
+  phaseResModel? selectedPhase;
+
+  String selectedPhaseId = '';
+  bool isSelectedEmpty = false;
 
   @override
   void initState() {
@@ -513,7 +521,7 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
                               ),
                               height:
                                   screenHeight *
-                                  0.29, // Tự động thay đổi theo màn hình
+                                  0.3, // Tự động thay đổi theo màn hình
                               width: double.infinity,
                               decoration: BoxDecoration(
                                 borderRadius: BorderRadius.circular(20),
@@ -863,8 +871,93 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
                             ),
                             Container(
                               margin: EdgeInsets.symmetric(
+                                vertical: screenHeight * 0.0001,
+                                horizontal: screenWidth * 0.04,
+                              ), // Xoá horizontal nếu muốn full width
+                              width:
+                                  double
+                                      .infinity, // Container chiếm toàn bộ chiều ngang
+                              child: SizedBox(
+                                height: screenHeight * 0.055,
+                                width:
+                                    double
+                                        .infinity, // Nút chiếm toàn bộ chiều ngang của Container
+                                child: ElevatedButton(
+                                  onPressed: () async {
+                                    _goToChoosePlant();
+                                  },
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFF9F7BFF),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                  ),
+                                  child: Text(
+                                    'Chỉnh sửa thông tin',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            Container(
+                              margin: EdgeInsets.symmetric(
+                                horizontal: screenWidth * 0.04,
+                                vertical: screenHeight * 0.01,
+                              ),
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    'Giai đoạn của cây',
+                                    style: TextStyle(
+                                      fontSize: screenWidth * 0.045,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.black,
+                                    ),
+                                  ),
+                                  DropdownButton<String>(
+                                    value:
+                                        isSelectedEmpty
+                                            ? null
+                                            : selectedPhaseId,
+                                    hint: Text("Chọn giai đoạn"),
+                                    items:
+                                        dropdownItems
+                                            .cast<DropdownMenuItem<String>>(),
+                                    onChanged: (String? newValue) {
+                                      if (newValue == customOptionValue) {
+                                        // Navigator.push(
+                                        //   context,
+                                        //   MaterialPageRoute(
+                                        //     builder:
+                                        //         (context) =>
+                                        //             CreateCustomPhasePage(),
+                                        //   ),
+                                        // );
+                                      } else if (newValue != null) {
+                                        setState(() {
+                                          for (var phase in phaseRes!) {
+                                            phase.setIsSelected(
+                                              phase.getId() == newValue,
+                                            );
+                                          }
+                                        });
+                                      }
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ),
+
+                            Container(
+                              margin: EdgeInsets.symmetric(
                                 horizontal: screenWidth * 0.04, // Thay vì 15
-                                vertical: screenHeight * 0.001,
+                                vertical: screenHeight * 0.002,
                               ),
                               child: Row(
                                 mainAxisAlignment:
@@ -916,6 +1009,7 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
                                 ),
                               ),
                             ),
+                            SizedBox(height: screenHeight * 0.04),
                           ],
                         ),
                       )
@@ -1157,9 +1251,47 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
       Map<String, dynamic> data = responseJson['response']?['data'] ?? {};
       _deviceItem = DeviceItemModel.fromJson(data);
       IoTResModel ioTData = IoTResModel.fromJson(data['ioTData'] ?? {});
+      phaseRes =
+          (data['phase'] as List<dynamic>? ?? [])
+              .map((item) => phaseResModel.fromJson(item))
+              .toList();
+
+      final bool hasCustomPhase = (phaseRes ?? []).any(
+        (e) => e.getIsDefault() == false,
+      );
+
+      selectedPhase = phaseRes?.firstWhere(
+        (e) => e.getIsSelected(),
+        orElse:
+            () => phaseResModel(
+              id: '',
+              phaseName: '',
+              isDefault: false,
+              isSelected: false,
+            ),
+      );
+
+      selectedPhaseId = selectedPhase?.getId() ?? '';
+      isSelectedEmpty = selectedPhaseId.isEmpty;
+
+      dropdownItems = [
+        ...(phaseRes ?? []).map((phase) {
+          return DropdownMenuItem<String>(
+            value: phase.getId(),
+            child: Text(phase.getPhaseName()),
+          );
+        }),
+        if (!hasCustomPhase)
+          DropdownMenuItem<String>(
+            value: customOptionValue,
+            child: Text("Tùy chỉnh..."),
+          ),
+      ];
+
       setState(() {
         _isLoading = false;
         _deviceItem?.setIoTData(ioTData); // Cập nhật dữ liệu IoT vào thiết bị
+        _deviceItem?.setPhases(phaseRes ?? []);
       });
       // Xử lý dữ liệu thiết bị ở đây
       _isLoading = false;
