@@ -62,6 +62,7 @@ class DeviceItemModel {
   String deviceItemId;
   String deviceItemName;
   String type;
+  String plantId;
   String plantName;
   bool isOnline;
   String serial;
@@ -75,6 +76,7 @@ class DeviceItemModel {
     required this.deviceItemId,
     required this.deviceItemName,
     required this.type,
+    required this.plantId,
     required this.plantName,
     required this.serial,
     required this.isOnline,
@@ -93,6 +95,10 @@ class DeviceItemModel {
 
   String getType() {
     return type;
+  }
+
+  String getPlantId() {
+    return plantId;
   }
 
   String getPlantName() {
@@ -123,6 +129,10 @@ class DeviceItemModel {
     ioTData = data;
   }
 
+  void setPlantId(String plantId) {
+    this.plantId = plantId;
+  }
+
   int getRefreshCycleHours() {
     return refreshCycleHours;
   }
@@ -144,6 +154,7 @@ class DeviceItemModel {
       deviceItemId: json['deviceItemId'],
       deviceItemName: json['deviceItemName'],
       type: json['type'],
+      plantId: json['plantId'],
       plantName: json['plantName'],
       serial: json['serial'],
       isOnline: json['isOnline'],
@@ -164,13 +175,13 @@ class DeviceItemModel {
 
 class phaseResModel {
   String id;
-  String phaseName;
+  String? phaseName;
   bool isDefault;
   bool isSelected;
 
   phaseResModel({
     required this.id,
-    required this.phaseName,
+    this.phaseName,
     required this.isDefault,
     required this.isSelected,
   });
@@ -179,7 +190,7 @@ class phaseResModel {
     return id;
   }
 
-  String getPhaseName() {
+  String? getPhaseName() {
     return phaseName;
   }
 
@@ -199,7 +210,7 @@ class phaseResModel {
     return phaseResModel(
       id: json['id'],
       phaseName: json['phaseName'],
-      isDefault: json['isDefault'],
+      isDefault: json['isDefault'] ?? false,
       isSelected: json['isSelected'] ?? false,
     );
   }
