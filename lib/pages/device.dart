@@ -6,6 +6,7 @@ import 'package:hmes/context/baseAPI_URL.dart';
 import 'package:hmes/helper/logout.dart';
 import 'package:hmes/helper/secureStorageHelper.dart';
 import 'package:hmes/models/device.dart';
+import 'package:hmes/models/phase.dart';
 import 'package:hmes/pages/connect-device.dart';
 import 'package:hmes/services/mqtt-service.dart';
 import 'package:intl/intl.dart';
@@ -283,6 +284,14 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
   bool hasNewData = false;
   DeviceItemModel? _deviceItem;
   int selectedOption = 5; // Default value for the dropdown
+  List<phaseResModel>? phaseRes;
+  var dropdownItems = [];
+  var customOptionValue = '__custom__';
+
+  phaseResModel? selectedPhase;
+
+  String selectedPhaseId = '';
+  bool isSelectedEmpty = false;
 
   @override
   void initState() {
@@ -310,7 +319,11 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
     double screenHeight = MediaQuery.of(context).size.height;
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.deviceName),
+        title: Text(
+          _deviceItem?.deviceItemName == widget.deviceName
+              ? widget.deviceName
+              : _deviceItem?.deviceItemName ?? 'Thiết bị',
+        ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () {
@@ -513,7 +526,7 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
                               ),
                               height:
                                   screenHeight *
-                                  0.29, // Tự động thay đổi theo màn hình
+                                  0.3, // Tự động thay đổi theo màn hình
                               width: double.infinity,
                               decoration: BoxDecoration(
                                 borderRadius: BorderRadius.circular(20),
@@ -768,6 +781,39 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
                               margin: EdgeInsets.symmetric(
                                 horizontal: screenWidth * 0.04, // Thay vì 15
                                 vertical: screenHeight * 0.025,
+                              ), // Xoá horizontal nếu muốn full width
+                              width:
+                                  double
+                                      .infinity, // Container chiếm toàn bộ chiều ngang
+                              child: SizedBox(
+                                height: screenHeight * 0.055,
+                                width:
+                                    double
+                                        .infinity, // Nút chiếm toàn bộ chiều ngang của Container
+                                child: ElevatedButton(
+                                  onPressed: () async {
+                                    _goToChangeName();
+                                  },
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFF9F7BFF),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                  ),
+                                  child: Text(
+                                    'Đổi tên thiết bị',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            Container(
+                              margin: EdgeInsets.symmetric(
+                                horizontal: screenWidth * 0.04, // Thay vì 15
                               ),
                               child: Row(
                                 mainAxisAlignment:
@@ -863,8 +909,65 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
                             ),
                             Container(
                               margin: EdgeInsets.symmetric(
+                                horizontal: screenWidth * 0.04,
+                                vertical: screenHeight * 0.01,
+                              ),
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    'Giai đoạn của cây',
+                                    style: TextStyle(
+                                      fontSize: screenWidth * 0.045,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.black,
+                                    ),
+                                  ),
+                                  DropdownButton<String>(
+                                    value:
+                                        isSelectedEmpty
+                                            ? null
+                                            : selectedPhaseId,
+                                    hint: Text("Chọn giai đoạn"),
+                                    items:
+                                        dropdownItems
+                                            .cast<DropdownMenuItem<String>>(),
+                                    onChanged: (String? newValue) {
+                                      if (newValue == customOptionValue) {
+                                        _goToSetPhase(null);
+                                        return;
+                                      }
+
+                                      final deviceItem = _deviceItem;
+                                      final phases = deviceItem?.phases;
+
+                                      if (phases != null &&
+                                          phases.any(
+                                            (p) =>
+                                                p.id == newValue &&
+                                                !p.isDefault,
+                                          )) {
+                                        _goToSetPhase(newValue);
+                                        return;
+                                      }
+
+                                      if (newValue != null) {
+                                        setState(() {
+                                          selectedPhaseId = newValue;
+                                          _updatePhase();
+                                        });
+                                      }
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ),
+
+                            Container(
+                              margin: EdgeInsets.symmetric(
                                 horizontal: screenWidth * 0.04, // Thay vì 15
-                                vertical: screenHeight * 0.001,
+                                vertical: screenHeight * 0.002,
                               ),
                               child: Row(
                                 mainAxisAlignment:
@@ -916,6 +1019,7 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
                                 ),
                               ),
                             ),
+                            SizedBox(height: screenHeight * 0.04),
                           ],
                         ),
                       )
@@ -934,6 +1038,26 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
         ],
       ),
     );
+  }
+
+  void _goToSetPhase(String? newValue) async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder:
+            (context) => EditPhasePage(
+              phaseId: newValue,
+              plantId: _deviceItem!.plantId,
+              deviceItemId: _deviceItem!.deviceItemId,
+              controller: widget.controller,
+            ),
+      ),
+    );
+
+    if (result == true) {
+      // Reload lại dữ liệu khi quay về
+      _getDeviceDetails();
+    }
   }
 
   void _goToHistory() async {
@@ -1129,6 +1253,25 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
     }
   }
 
+  void _goToChangeName() async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder:
+            (context) => ChangeDeviceName(
+              controller: widget.controller,
+              deviceId: widget.deviceId,
+              deviceName: _deviceItem?.deviceItemName ?? 'Thiết bị',
+            ),
+      ),
+    );
+
+    if (result == true) {
+      // Reload lại dữ liệu khi quay về
+      _getDeviceDetails();
+    }
+  }
+
   Future<void> _getDeviceDetails() async {
     String token = (await getToken()).toString();
     String refreshToken = (await getRefreshToken()).toString();
@@ -1157,9 +1300,47 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
       Map<String, dynamic> data = responseJson['response']?['data'] ?? {};
       _deviceItem = DeviceItemModel.fromJson(data);
       IoTResModel ioTData = IoTResModel.fromJson(data['ioTData'] ?? {});
+      phaseRes =
+          (data['phase'] as List<dynamic>? ?? [])
+              .map((item) => phaseResModel.fromJson(item))
+              .toList();
+
+      final bool hasCustomPhase = (phaseRes ?? []).any(
+        (e) => e.getIsDefault() == false,
+      );
+
+      selectedPhase = phaseRes?.firstWhere(
+        (e) => e.getIsSelected(),
+        orElse:
+            () => phaseResModel(
+              id: '',
+              phaseName: '',
+              isDefault: false,
+              isSelected: false,
+            ),
+      );
+
+      selectedPhaseId = selectedPhase?.getId() ?? '';
+      isSelectedEmpty = selectedPhaseId.isEmpty;
+
+      dropdownItems = [
+        ...(phaseRes ?? []).map((phase) {
+          return DropdownMenuItem<String>(
+            value: phase.getId(),
+            child: Text(phase.getPhaseName() ?? 'Tùy chỉnh'),
+          );
+        }),
+        if (!hasCustomPhase)
+          DropdownMenuItem<String>(
+            value: customOptionValue,
+            child: Text("Tùy chỉnh"),
+          ),
+      ];
+
       setState(() {
         _isLoading = false;
         _deviceItem?.setIoTData(ioTData); // Cập nhật dữ liệu IoT vào thiết bị
+        _deviceItem?.setPhases(phaseRes ?? []);
       });
       // Xử lý dữ liệu thiết bị ở đây
       _isLoading = false;
@@ -1188,6 +1369,79 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
           fontSize: 16.0,
         );
 
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            Navigator.pop(context);
+          }
+        });
+      }
+    }
+  }
+
+  Future<void> _updatePhase() async {
+    String token = (await getToken()).toString();
+    String refreshToken = (await getRefreshToken()).toString();
+    String deviceId = (await getDeviceId()).toString();
+
+    if (!mounted) return; // Kiểm tra widget đã bị unmount hay chưa
+
+    final response = await http.put(
+      Uri.parse('${apiUrl}device/set-phase'),
+      headers: <String, String>{
+        'Content-Type': 'application/json; charset=UTF-8',
+        'Cookie': 'DeviceId=$deviceId; RefreshToken=$refreshToken',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode(<String, dynamic>{
+        'deviceItemId': widget.deviceId,
+        'phaseId': selectedPhaseId,
+      }),
+    );
+
+    String? newAccessToken = response.headers['new-access-token'];
+    if (newAccessToken != null) {
+      await updateToken(newAccessToken);
+    }
+
+    if (!mounted) return; // Kiểm tra lại widget trước khi setState
+
+    if (response.statusCode == 200) {
+      Fluttertoast.showToast(
+        msg: 'Cập nhật giai đoạn thành công',
+        toastLength: Toast.LENGTH_SHORT,
+        gravity: ToastGravity.BOTTOM,
+        timeInSecForIosWeb: 1,
+        textColor: Colors.black,
+        fontSize: 16.0,
+      );
+      setState(() {
+        _isLoading = true;
+        _getDeviceDetails();
+      });
+    } else if (response.statusCode == 401) {
+      if (mounted) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => Logout(controller: widget.controller),
+            ),
+          );
+        });
+      }
+    } else {
+      Map<String, dynamic> responseJson = jsonDecode(response.body);
+      _getDeviceStatus = responseJson['message'];
+
+      if (mounted) {
+        Fluttertoast.showToast(
+          msg: _getDeviceStatus,
+          toastLength: Toast.LENGTH_SHORT,
+          gravity: ToastGravity.BOTTOM,
+          timeInSecForIosWeb: 1,
+          textColor: Colors.black,
+          fontSize: 16.0,
+        );
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) {
             Navigator.pop(context);
@@ -1733,6 +1987,964 @@ class _HistoryState extends State<History> {
           }
         });
       }
+    }
+  }
+}
+
+class ChangeDeviceName extends StatefulWidget {
+  const ChangeDeviceName({
+    super.key,
+    required this.deviceId,
+    required this.deviceName,
+    required this.controller,
+  });
+  final String deviceId; // Thay thế bằng ID thiết bị thực tế
+  final String deviceName; // Thay thế bằng tên thiết bị thực tế
+  final PageController controller;
+
+  @override
+  State<ChangeDeviceName> createState() => _ChangeDeviceNameState();
+}
+
+class _ChangeDeviceNameState extends State<ChangeDeviceName> {
+  String _newName = '';
+  String _changeNameStatus = '';
+  @override
+  Widget build(BuildContext context) {
+    double screenWidth = MediaQuery.of(context).size.width;
+    double screenHeight = MediaQuery.of(context).size.height;
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Đổi tên thiết bị'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            Navigator.pop(context);
+          },
+        ),
+      ),
+      body: Container(
+        margin: EdgeInsets.symmetric(
+          horizontal: screenWidth * 0.04, // Thay vì 15
+          vertical: screenHeight * 0.025,
+        ),
+        child: Column(
+          children: [
+            Container(
+              height: 56,
+              decoration: BoxDecoration(
+                border: Border.all(width: 1, color: const Color(0xFF9F7BFF)),
+                borderRadius: const BorderRadius.all(Radius.circular(10)),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: TextField(
+                  controller: TextEditingController(text: widget.deviceName),
+                  onChanged: (value) => _newName = value,
+                  decoration: const InputDecoration(
+                    border: InputBorder.none,
+                    label: Text('Tên thiết bị'),
+                    hintText: 'Nhập tên thiết bị',
+                  ),
+                ),
+              ),
+            ),
+            SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () {
+                // Xử lý đổi tên thiết bị
+                if (_newName.isNotEmpty) {
+                  _updateDeviceName();
+                } else {
+                  Fluttertoast.showToast(
+                    msg: 'Vui lòng nhập tên thiết bị',
+                    toastLength: Toast.LENGTH_SHORT,
+                    gravity: ToastGravity.BOTTOM,
+                    timeInSecForIosWeb: 1,
+                    textColor: Colors.black,
+                    fontSize: 16.0,
+                  );
+                }
+              },
+              child: Text('Đổi tên'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _updateDeviceName() async {
+    String token = (await getToken()).toString();
+    String refreshToken = (await getRefreshToken()).toString();
+    String deviceId = (await getDeviceId()).toString();
+
+    if (!mounted) return; // Kiểm tra widget đã bị unmount hay chưa
+
+    final response = await http.put(
+      Uri.parse('${apiUrl}user/me/mobile/devices/${widget.deviceId}'),
+      headers: <String, String>{
+        'Content-Type': 'application/json; charset=UTF-8',
+        'Cookie': 'DeviceId=$deviceId; RefreshToken=$refreshToken',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode(<String, dynamic>{'deviceItemName': _newName}),
+    );
+
+    String? newAccessToken = response.headers['new-access-token'];
+    if (newAccessToken != null) {
+      await updateToken(newAccessToken);
+    }
+
+    if (!mounted) return; // Kiểm tra lại widget trước khi setState
+
+    if (response.statusCode == 200) {
+      Fluttertoast.showToast(
+        msg: 'Cập nhật tên thiết bị thành công',
+        toastLength: Toast.LENGTH_SHORT,
+        gravity: ToastGravity.BOTTOM,
+        timeInSecForIosWeb: 1,
+        textColor: Colors.black,
+        fontSize: 16.0,
+      );
+      Navigator.pop(context, true);
+    } else if (response.statusCode == 401) {
+      if (mounted) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => Logout(controller: widget.controller),
+            ),
+          );
+        });
+      }
+    } else {
+      Map<String, dynamic> responseJson = jsonDecode(response.body);
+      _changeNameStatus = responseJson['message'];
+      switch (_changeNameStatus) {
+        case 'Device item not found':
+          _changeNameStatus = 'Thiết bị không tồn tại';
+          break;
+        default:
+          _changeNameStatus = 'Đã xảy ra lỗi';
+      }
+      if (mounted) {
+        Fluttertoast.showToast(
+          msg: _changeNameStatus,
+          toastLength: Toast.LENGTH_SHORT,
+          gravity: ToastGravity.BOTTOM,
+          timeInSecForIosWeb: 1,
+          textColor: Colors.black,
+          fontSize: 16.0,
+        );
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            Navigator.pop(context);
+          }
+        });
+      }
+    }
+  }
+}
+
+class EditPhasePage extends StatefulWidget {
+  const EditPhasePage({
+    super.key,
+    this.phaseId,
+    required this.deviceItemId,
+    required this.controller,
+    required this.plantId,
+  });
+  final PageController controller;
+  final String deviceItemId;
+  final String plantId;
+  final String? phaseId;
+
+  @override
+  State<EditPhasePage> createState() => _EditPhasePageState();
+}
+
+class _EditPhasePageState extends State<EditPhasePage> {
+  final ScrollController _scrollController = ScrollController();
+  String? _errorLowWaterLevelText;
+  String? _errorHighWaterLevelText;
+  bool _isCreatingPhase = false;
+  bool _isLoading = true;
+  PhaseModel? newPhase;
+  PhaseGetModel? currentPhase;
+  List<double> soluteConcentration = [0, 0];
+  List<double> temperature = [0, 0];
+  List<double> ph = [0, 0];
+  List<int> waterLevel = [0, 1300];
+
+  // FocusNodes
+  final FocusNode _phaseNameFocus = FocusNode();
+  final FocusNode _soluteLowFocus = FocusNode();
+  final FocusNode _soluteHighFocus = FocusNode();
+  final FocusNode _tempLowFocus = FocusNode();
+  final FocusNode _tempHighFocus = FocusNode();
+  final FocusNode _phLowFocus = FocusNode();
+  final FocusNode _phHighFocus = FocusNode();
+  final FocusNode _waterLowFocus = FocusNode();
+  final FocusNode _waterHighFocus = FocusNode();
+
+  final _waterLowController = TextEditingController();
+  final _waterHighController = TextEditingController();
+  final _soluteLowController = TextEditingController();
+  final _soluteHighController = TextEditingController();
+  final _tempLowController = TextEditingController();
+  final _tempHighController = TextEditingController();
+  final _phLowController = TextEditingController();
+  final _phHighController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+
+    // Gán giá trị ban đầu cho controller
+    _waterLowController.text = waterLevel[0].toString();
+    _waterHighController.text = waterLevel[1].toString();
+    _soluteLowController.text = soluteConcentration[0].toString();
+    _soluteHighController.text = soluteConcentration[1].toString();
+    _tempLowController.text = temperature[0].toString();
+    _tempHighController.text = temperature[1].toString();
+    _phLowController.text = ph[0].toString();
+    _phHighController.text = ph[1].toString();
+
+    _phaseNameFocus.addListener(() => _scrollToFocused(_phaseNameFocus));
+    _soluteLowFocus.addListener(() => _scrollToFocused(_soluteLowFocus));
+    _soluteHighFocus.addListener(() => _scrollToFocused(_soluteHighFocus));
+    _tempLowFocus.addListener(() => _scrollToFocused(_tempLowFocus));
+    _tempHighFocus.addListener(() => _scrollToFocused(_tempHighFocus));
+    _phLowFocus.addListener(() => _scrollToFocused(_phLowFocus));
+    _phHighFocus.addListener(() => _scrollToFocused(_phHighFocus));
+    _waterLowFocus.addListener(() => _scrollToFocused(_waterLowFocus));
+    _waterHighFocus.addListener(() => _scrollToFocused(_waterHighFocus));
+
+    _getCurrentPhase(); // nếu có load dữ liệu ban đầu
+  }
+
+  @override
+  void dispose() {
+    _waterLowController.dispose();
+    _waterHighController.dispose();
+    _soluteLowController.dispose();
+    _soluteHighController.dispose();
+    _tempLowController.dispose();
+    _tempHighController.dispose();
+    _phLowController.dispose();
+    _phHighController.dispose();
+    _phaseNameFocus.dispose();
+    _soluteLowFocus.dispose();
+    _soluteHighFocus.dispose();
+    _tempLowFocus.dispose();
+    _tempHighFocus.dispose();
+    _phLowFocus.dispose();
+    _phHighFocus.dispose();
+    _waterLowFocus.dispose();
+    _waterHighFocus.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _scrollToFocused(FocusNode node) {
+    if (node.hasFocus) {
+      Future.delayed(Duration(milliseconds: 300), () {
+        Scrollable.ensureVisible(
+          node.context!,
+          duration: Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+        );
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    double screenWidth = MediaQuery.of(context).size.width;
+    double screenHeight = MediaQuery.of(context).size.height;
+    final viewInsets = MediaQuery.of(context).viewInsets;
+
+    Widget buildInput({
+      required String label,
+      required String hint,
+      required TextEditingController controller,
+      required Function(String) onChanged,
+      required FocusNode focusNode,
+      required TextInputType keyboardType,
+      bool enabled = true,
+      String? errorText,
+    }) {
+      return Container(
+        height: 56,
+        margin: const EdgeInsets.only(bottom: 10),
+        decoration: BoxDecoration(
+          border: Border.all(width: 1, color: const Color(0xFF9F7BFF)),
+          borderRadius: const BorderRadius.all(Radius.circular(10)),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: TextField(
+            controller: controller,
+            focusNode: focusNode,
+            enabled: enabled,
+            keyboardType: keyboardType,
+            onChanged: onChanged,
+            decoration: InputDecoration(
+              border: InputBorder.none,
+              labelText: label,
+              hintText: hint,
+              errorText: errorText,
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Scaffold(
+      resizeToAvoidBottomInset: false,
+      appBar: AppBar(
+        title: const Text('Tùy chỉnh'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.pop(context),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              // Xử lý lưu giai đoạn
+              if (widget.phaseId == null) {
+                if (soluteConcentration[0] < soluteConcentration[1] &&
+                    temperature[0] < temperature[1] &&
+                    ph[0] < ph[1] &&
+                    waterLevel[0] < waterLevel[1]) {
+                  // Gọi API để lưu giai đoạn mới
+                  _createPhase();
+                }
+                //_updatePhase();
+              } else if (widget.phaseId != null) {
+                if (soluteConcentration[0] < soluteConcentration[1] &&
+                    temperature[0] < temperature[1] &&
+                    ph[0] < ph[1] &&
+                    waterLevel[0] < waterLevel[1]) {
+                  // Gọi API để cập nhật giai đoạn hiện tại
+                  _updatePhase();
+                }
+                //_updatePhase();
+              } else {
+                Fluttertoast.showToast(
+                  msg: 'Vui lòng nhập giá trị hợp lệ',
+                  toastLength: Toast.LENGTH_SHORT,
+                  gravity: ToastGravity.BOTTOM,
+                  timeInSecForIosWeb: 1,
+                  textColor: Colors.black,
+                  fontSize: 16.0,
+                );
+              }
+            },
+            child: const Text(
+              'Lưu',
+              style: TextStyle(color: Colors.deepPurpleAccent, fontSize: 18),
+            ),
+          ),
+        ],
+      ),
+      body: SafeArea(
+        child:
+            _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : LayoutBuilder(
+                  builder: (context, constraints) {
+                    return SingleChildScrollView(
+                      padding: EdgeInsets.only(
+                        left: screenWidth * 0.04,
+                        right: screenWidth * 0.04,
+                        top: 16,
+                        bottom:
+                            viewInsets.bottom +
+                            5, // 👈 Thêm padding dưới theo bàn phím
+                      ),
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          minHeight: constraints.maxHeight,
+                        ),
+                        child: IntrinsicHeight(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const SizedBox(height: 10),
+                              const Text(
+                                "Nồng độ chất dinh dưỡng (ppm)",
+                                style: TextStyle(fontSize: 16),
+                              ),
+                              buildInput(
+                                label: 'Giá trị thấp nhất',
+                                hint: 'Nhập giá trị thấp nhất',
+                                controller: _soluteLowController,
+                                focusNode: _soluteLowFocus,
+                                keyboardType: TextInputType.number,
+                                onChanged:
+                                    (val) =>
+                                        soluteConcentration[0] =
+                                            double.tryParse(val) ?? 0,
+                              ),
+                              buildInput(
+                                label: 'Giá trị cao nhất',
+                                hint: 'Nhập giá trị cao nhất',
+                                controller: _soluteHighController,
+                                focusNode: _soluteHighFocus,
+                                keyboardType: TextInputType.number,
+                                onChanged:
+                                    (val) =>
+                                        soluteConcentration[1] =
+                                            double.tryParse(val) ?? 0,
+                              ),
+                              const Text(
+                                "Nhiệt độ (°C)",
+                                style: TextStyle(fontSize: 16),
+                              ),
+                              buildInput(
+                                label: 'Giá trị thấp nhất',
+                                hint: 'Nhập giá trị thấp nhất',
+                                controller: _tempLowController,
+                                focusNode: _tempLowFocus,
+                                keyboardType: TextInputType.number,
+                                onChanged:
+                                    (val) =>
+                                        temperature[0] =
+                                            double.tryParse(val) ?? 0,
+                              ),
+                              buildInput(
+                                label: 'Giá trị cao nhất',
+                                hint: 'Nhập giá trị cao nhất',
+                                controller: _tempHighController,
+                                focusNode: _tempHighFocus,
+                                keyboardType: TextInputType.number,
+                                onChanged:
+                                    (val) =>
+                                        temperature[1] =
+                                            double.tryParse(val) ?? 0,
+                              ),
+                              const Text(
+                                "Nồng độ pH",
+                                style: TextStyle(fontSize: 16),
+                              ),
+                              buildInput(
+                                label: 'Giá trị thấp nhất',
+                                hint: 'Nhập giá trị thấp nhất',
+                                controller: _phLowController,
+                                focusNode: _phLowFocus,
+                                keyboardType: TextInputType.number,
+                                onChanged:
+                                    (val) => ph[0] = double.tryParse(val) ?? 0,
+                              ),
+                              buildInput(
+                                label: 'Giá trị cao nhất',
+                                hint: 'Nhập giá trị cao nhất',
+                                controller: _phHighController,
+                                focusNode: _phHighFocus,
+                                keyboardType: TextInputType.number,
+                                onChanged:
+                                    (val) => ph[1] = double.tryParse(val) ?? 0,
+                              ),
+                              const Text(
+                                "Mức nước",
+                                style: TextStyle(fontSize: 16),
+                              ),
+                              buildInput(
+                                label: 'Giá trị thấp nhất',
+                                hint: 'Nhập giá trị thấp nhất',
+                                controller: _waterLowController,
+                                focusNode: _waterLowFocus,
+                                keyboardType: TextInputType.number,
+                                errorText: _errorLowWaterLevelText,
+                                onChanged: (value) {
+                                  final parsed = int.tryParse(value);
+                                  if (parsed == null || parsed < 0) {
+                                    setState(
+                                      () =>
+                                          _errorLowWaterLevelText =
+                                              'Giá trị tối thiểu là 0',
+                                    );
+                                  } else {
+                                    setState(() {
+                                      _errorLowWaterLevelText = null;
+                                      waterLevel[0] = parsed;
+                                    });
+                                  }
+                                },
+                              ),
+                              buildInput(
+                                label: 'Giá trị cao nhất',
+                                hint: 'Nhập giá trị cao nhất',
+                                controller: _waterHighController,
+                                focusNode: _waterHighFocus,
+                                keyboardType: TextInputType.number,
+                                errorText: _errorHighWaterLevelText,
+                                onChanged: (value) {
+                                  final parsed = int.tryParse(value);
+                                  if (parsed == null || parsed > 1300) {
+                                    setState(
+                                      () =>
+                                          _errorHighWaterLevelText =
+                                              'Giá trị tối đa là 1300',
+                                    );
+                                  } else {
+                                    setState(() {
+                                      _errorHighWaterLevelText = null;
+                                      waterLevel[1] = parsed;
+                                    });
+                                  }
+                                },
+                              ),
+                              const Text(
+                                "*Giá trị mức nước tối đa là 1300",
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontStyle: FontStyle.italic,
+                                ),
+                              ),
+                              const SizedBox(height: 20),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+      ),
+    );
+  }
+
+  Future<void> _getCurrentPhase() async {
+    if (widget.phaseId == null) {
+      setState(() {
+        _isLoading = false;
+      });
+      return;
+    } // Không cần gọi API nếu không có phaseId
+    String token = (await getToken()).toString();
+    String refreshToken = (await getRefreshToken()).toString();
+    String deviceId = (await getDeviceId()).toString();
+
+    if (!mounted) return; // Kiểm tra widget đã bị unmount hay chưa
+
+    final response = await http.get(
+      Uri.parse('${apiUrl}target-value/${widget.plantId}/${widget.phaseId}'),
+      headers: <String, String>{
+        'Content-Type': 'application/json; charset=UTF-8',
+        'Cookie': 'DeviceId=$deviceId; RefreshToken=$refreshToken',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    String? newAccessToken = response.headers['new-access-token'];
+    if (newAccessToken != null) {
+      updateToken(newAccessToken);
+    }
+
+    if (!mounted) return; // Kiểm tra lại widget trước khi setState
+
+    if (response.statusCode == 200) {
+      Map<String, dynamic> responseJson = jsonDecode(response.body);
+      Map<String, dynamic> data = responseJson['response']?['data'] ?? {};
+      setState(() {
+        currentPhase = PhaseGetModel.fromJson(data);
+        _isLoading = false;
+      });
+
+      if (currentPhase?.target != null) {
+        for (var entry in currentPhase!.target!) {
+          switch (entry.type) {
+            case 'SoluteConcentration':
+              soluteConcentration = [entry.minValue, entry.maxValue];
+              _soluteLowController.text = entry.minValue.toString();
+              _soluteHighController.text = entry.maxValue.toString();
+              break;
+
+            case 'Temperature':
+              temperature = [entry.minValue, entry.maxValue];
+              _tempLowController.text = entry.minValue.toString();
+              _tempHighController.text = entry.maxValue.toString();
+              break;
+
+            case 'Ph':
+              ph = [entry.minValue, entry.maxValue];
+              _phLowController.text = entry.minValue.toString();
+              _phHighController.text = entry.maxValue.toString();
+              break;
+
+            case 'WaterLevel':
+              waterLevel = [entry.minValue.toInt(), entry.maxValue.toInt()];
+              _waterLowController.text = entry.minValue.toInt().toString();
+              _waterHighController.text = entry.maxValue.toInt().toString();
+              break;
+          }
+        }
+      }
+    } else if (response.statusCode == 401) {
+      if (mounted) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => Logout(controller: widget.controller),
+            ),
+          );
+        });
+      }
+    } else {
+      Map<String, dynamic> responseJson = jsonDecode(response.body);
+      String statusMessage = responseJson['message'] ?? 'Đã xảy ra lỗi';
+      Fluttertoast.showToast(
+        msg: statusMessage,
+        toastLength: Toast.LENGTH_SHORT,
+        gravity: ToastGravity.BOTTOM,
+        timeInSecForIosWeb: 1,
+        textColor: Colors.black,
+        fontSize: 16.0,
+      );
+    }
+  }
+
+  Future<void> _createPhase() async {
+    String token = (await getToken()).toString();
+    String refreshToken = (await getRefreshToken()).toString();
+    String deviceId = (await getDeviceId()).toString();
+
+    if (!mounted) return; // Kiểm tra widget đã bị unmount hay chưa
+
+    final response = await http.post(
+      Uri.parse('${apiUrl}device/init-custom-phase'),
+      headers: <String, String>{
+        'Content-Type': 'application/json; charset=UTF-8',
+        'Cookie': 'DeviceId=$deviceId; RefreshToken=$refreshToken',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    String? newAccessToken = response.headers['new-access-token'];
+    if (newAccessToken != null) {
+      await updateToken(newAccessToken);
+    }
+    if (!mounted) return; // Kiểm tra lại widget trước khi setState
+
+    if (response.statusCode == 200) {
+      Fluttertoast.showToast(
+        msg: 'Tạo giai đoạn thành công',
+        toastLength: Toast.LENGTH_SHORT,
+        gravity: ToastGravity.BOTTOM,
+        timeInSecForIosWeb: 1,
+        textColor: Colors.black,
+        fontSize: 16.0,
+      );
+      Map<String, dynamic> responseJson = jsonDecode(response.body);
+      Map<String, dynamic> data = responseJson['response']?['data'] ?? {};
+      setState(() {
+        newPhase = PhaseModel.fromJson(data);
+      });
+      _setPhaseToPlant();
+    } else if (response.statusCode == 401) {
+      if (mounted) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => Logout(controller: widget.controller),
+            ),
+          );
+        });
+      }
+    } else {
+      Map<String, dynamic> responseJson = jsonDecode(response.body);
+      String statusMessage = responseJson['message'] ?? 'Đã xảy ra lỗi';
+      Fluttertoast.showToast(
+        msg: statusMessage,
+        toastLength: Toast.LENGTH_SHORT,
+        gravity: ToastGravity.BOTTOM,
+        timeInSecForIosWeb: 1,
+        textColor: Colors.black,
+        fontSize: 16.0,
+      );
+    }
+  }
+
+  Future<void> _setPhaseToDevice() async {
+    String token = (await getToken()).toString();
+    String refreshToken = (await getRefreshToken()).toString();
+    String deviceId = (await getDeviceId()).toString();
+    if (!mounted) return; // Kiểm tra widget đã bị unmount hay chưa
+    final response = await http.put(
+      Uri.parse('${apiUrl}device/set-phase'),
+      headers: <String, String>{
+        'Content-Type': 'application/json; charset=UTF-8',
+        'Cookie': 'DeviceId=$deviceId; RefreshToken=$refreshToken',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode(<String, dynamic>{
+        'deviceItemId': widget.deviceItemId,
+        'phaseId': newPhase?.id ?? widget.phaseId,
+      }),
+    );
+    String? newAccessToken = response.headers['new-access-token'];
+    if (newAccessToken != null) {
+      await updateToken(newAccessToken);
+    }
+    if (!mounted) return; // Kiểm tra lại widget trước khi setState
+    if (response.statusCode == 200) {
+      Fluttertoast.showToast(
+        msg: 'Cập nhật giai đoạn thành công',
+        toastLength: Toast.LENGTH_SHORT,
+        gravity: ToastGravity.BOTTOM,
+        timeInSecForIosWeb: 1,
+        textColor: Colors.black,
+        fontSize: 16.0,
+      );
+      setState(() {
+        _isCreatingPhase = false;
+      });
+      Navigator.pop(context, true);
+    } else if (response.statusCode == 401) {
+      if (mounted) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => Logout(controller: widget.controller),
+            ),
+          );
+        });
+      }
+      setState(() {
+        _isCreatingPhase = false;
+      });
+    } else {
+      Map<String, dynamic> responseJson = jsonDecode(response.body);
+      String statusMessage = responseJson['message'] ?? 'Đã xảy ra lỗi';
+      Fluttertoast.showToast(
+        msg: statusMessage,
+        toastLength: Toast.LENGTH_SHORT,
+        gravity: ToastGravity.BOTTOM,
+        timeInSecForIosWeb: 1,
+        textColor: Colors.black,
+        fontSize: 16.0,
+      );
+
+      setState(() {
+        _isCreatingPhase = false;
+      });
+    }
+  }
+
+  Future<void> _setPhaseToPlant() async {
+    String token = (await getToken()).toString();
+    String refreshToken = (await getRefreshToken()).toString();
+    String deviceId = (await getDeviceId()).toString();
+
+    if (!mounted) return; // Kiểm tra widget đã bị unmount hay chưa
+    final response = await http.post(
+      Uri.parse(
+        '${apiUrl}device/${widget.plantId}/phase/${newPhase?.id ?? widget.phaseId}',
+      ),
+      headers: <String, String>{
+        'Content-Type': 'application/json; charset=UTF-8',
+        'Cookie': 'DeviceId=$deviceId; RefreshToken=$refreshToken',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    String? newAccessToken = response.headers['new-access-token'];
+    if (newAccessToken != null) {
+      await updateToken(newAccessToken);
+    }
+
+    if (!mounted) return; // Kiểm tra lại widget trước khi setState
+
+    if (response.statusCode == 200) {
+      _setValue();
+    } else if (response.statusCode == 401) {
+      if (mounted) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => Logout(controller: widget.controller),
+            ),
+          );
+        });
+      }
+      setState(() {
+        _isCreatingPhase = false;
+      });
+    } else {
+      Map<String, dynamic> responseJson = jsonDecode(response.body);
+      String statusMessage = responseJson['message'] ?? 'Đã xảy ra lỗi';
+      Fluttertoast.showToast(
+        msg: statusMessage,
+        toastLength: Toast.LENGTH_SHORT,
+        gravity: ToastGravity.BOTTOM,
+        timeInSecForIosWeb: 1,
+        textColor: Colors.black,
+        fontSize: 16.0,
+      );
+
+      setState(() {
+        _isCreatingPhase = false;
+      });
+    }
+  }
+
+  Future<void> _setValue() async {
+    String token = (await getToken()).toString();
+    String refreshToken = (await getRefreshToken()).toString();
+    String deviceId = (await getDeviceId()).toString();
+
+    if (!mounted) return; // Kiểm tra widget đã bị unmount hay chưa
+
+    final response = await http.post(
+      Uri.parse('${apiUrl}device/set-value'),
+      headers: <String, String>{
+        'Content-Type': 'application/json; charset=UTF-8',
+        'Cookie': 'DeviceId=$deviceId; RefreshToken=$refreshToken',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode(<String, dynamic>{
+        'deviceItemId': widget.deviceItemId,
+        'phaseId': newPhase?.id ?? widget.phaseId,
+        'values': [
+          {
+            'type': 'soluteConcentration',
+            'minValue': soluteConcentration[0],
+            'maxValue': soluteConcentration[1],
+          },
+          {
+            'type': 'temperature',
+            'minValue': temperature[0],
+            'maxValue': temperature[1],
+          },
+          {'type': 'ph', 'minValue': ph[0], 'maxValue': ph[1]},
+          {
+            'type': 'waterLevel',
+            'minValue': waterLevel[0],
+            'maxValue': waterLevel[1],
+          },
+        ],
+      }),
+    );
+
+    String? newAccessToken = response.headers['new-access-token'];
+    if (newAccessToken != null) {
+      await updateToken(newAccessToken);
+    }
+    if (!mounted) return; // Kiểm tra lại widget trước khi setState
+
+    if (response.statusCode == 200) {
+      _setPhaseToDevice();
+    } else if (response.statusCode == 401) {
+      if (mounted) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => Logout(controller: widget.controller),
+            ),
+          );
+        });
+      }
+      setState(() {
+        _isCreatingPhase = false;
+      });
+    } else {
+      Map<String, dynamic> responseJson = jsonDecode(response.body);
+      String statusMessage = responseJson['message'] ?? 'Đã xảy ra lỗi';
+      Fluttertoast.showToast(
+        msg: statusMessage,
+        toastLength: Toast.LENGTH_SHORT,
+        gravity: ToastGravity.BOTTOM,
+        timeInSecForIosWeb: 1,
+        textColor: Colors.black,
+        fontSize: 16.0,
+      );
+
+      setState(() {
+        _isCreatingPhase = false;
+      });
+    }
+  }
+
+  Future<void> _updatePhase() async {
+    String token = (await getToken()).toString();
+    String refreshToken = (await getRefreshToken()).toString();
+    String deviceId = (await getDeviceId()).toString();
+
+    if (!mounted) return; // Kiểm tra widget đã bị unmount hay chưa
+
+    final response = await http.put(
+      Uri.parse('${apiUrl}device/update-value/'),
+      headers: <String, String>{
+        'Content-Type': 'application/json; charset=UTF-8',
+        'Cookie': 'DeviceId=$deviceId; RefreshToken=$refreshToken',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode(<String, dynamic>{
+        'deviceItemId': widget.deviceItemId,
+        'phaseId': newPhase?.id ?? widget.phaseId,
+        'values': [
+          {
+            'type': 'soluteConcentration',
+            'minValue': soluteConcentration[0],
+            'maxValue': soluteConcentration[1],
+          },
+          {
+            'type': 'temperature',
+            'minValue': temperature[0],
+            'maxValue': temperature[1],
+          },
+          {'type': 'ph', 'minValue': ph[0], 'maxValue': ph[1]},
+          {
+            'type': 'waterLevel',
+            'minValue': waterLevel[0],
+            'maxValue': waterLevel[1],
+          },
+        ],
+      }),
+    );
+
+    String? newAccessToken = response.headers['new-access-token'];
+    if (newAccessToken != null) {
+      await updateToken(newAccessToken);
+    }
+
+    if (!mounted) return; // Kiểm tra lại widget trước khi setState
+
+    if (response.statusCode == 200) {
+      _setPhaseToDevice();
+    } else if (response.statusCode == 401) {
+      if (mounted) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => Logout(controller: widget.controller),
+            ),
+          );
+        });
+      }
+    } else {
+      Map<String, dynamic> responseJson = jsonDecode(response.body);
+      String statusMessage = responseJson['message'] ?? 'Đã xảy ra lỗi';
+      Fluttertoast.showToast(
+        msg: statusMessage,
+        toastLength: Toast.LENGTH_SHORT,
+        gravity: ToastGravity.BOTTOM,
+        timeInSecForIosWeb: 1,
+        textColor: Colors.black,
+        fontSize: 16.0,
+      );
+      setState(() {
+        _isCreatingPhase = false;
+      });
     }
   }
 }

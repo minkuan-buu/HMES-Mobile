@@ -62,9 +62,11 @@ class DeviceItemModel {
   String deviceItemId;
   String deviceItemName;
   String type;
+  String plantId;
   String plantName;
   bool isOnline;
   String serial;
+  List<phaseResModel>? phases;
   IoTResModel? ioTData;
   DateTime? warrantyExpiryDate;
   DateTime? lastUpdatedDate;
@@ -74,6 +76,7 @@ class DeviceItemModel {
     required this.deviceItemId,
     required this.deviceItemName,
     required this.type,
+    required this.plantId,
     required this.plantName,
     required this.serial,
     required this.isOnline,
@@ -92,6 +95,10 @@ class DeviceItemModel {
 
   String getType() {
     return type;
+  }
+
+  String getPlantId() {
+    return plantId;
   }
 
   String getPlantName() {
@@ -122,6 +129,10 @@ class DeviceItemModel {
     ioTData = data;
   }
 
+  void setPlantId(String plantId) {
+    this.plantId = plantId;
+  }
+
   int getRefreshCycleHours() {
     return refreshCycleHours;
   }
@@ -130,11 +141,20 @@ class DeviceItemModel {
     refreshCycleHours = hours;
   }
 
+  void setPhases(List<phaseResModel> phases) {
+    this.phases = phases;
+  }
+
+  List<phaseResModel>? getPhases() {
+    return phases;
+  }
+
   factory DeviceItemModel.fromJson(Map<String, dynamic> json) {
     return DeviceItemModel(
       deviceItemId: json['deviceItemId'],
       deviceItemName: json['deviceItemName'],
       type: json['type'],
+      plantId: json['plantId'],
       plantName: json['plantName'],
       serial: json['serial'],
       isOnline: json['isOnline'],
@@ -149,6 +169,49 @@ class DeviceItemModel {
               ? DateTime.parse(json['lastUpdatedDate'])
                   .toLocal() // ✅ Chuyển về giờ địa phương
               : null,
+    );
+  }
+}
+
+class phaseResModel {
+  String id;
+  String? phaseName;
+  bool isDefault;
+  bool isSelected;
+
+  phaseResModel({
+    required this.id,
+    this.phaseName,
+    required this.isDefault,
+    required this.isSelected,
+  });
+
+  String getId() {
+    return id;
+  }
+
+  String? getPhaseName() {
+    return phaseName;
+  }
+
+  bool getIsDefault() {
+    return isDefault;
+  }
+
+  bool getIsSelected() {
+    return isSelected;
+  }
+
+  void setIsSelected(bool isSelected) {
+    this.isSelected = isSelected;
+  }
+
+  factory phaseResModel.fromJson(Map<String, dynamic> json) {
+    return phaseResModel(
+      id: json['id'],
+      phaseName: json['phaseName'],
+      isDefault: json['isDefault'] ?? false,
+      isSelected: json['isSelected'] ?? false,
     );
   }
 }
