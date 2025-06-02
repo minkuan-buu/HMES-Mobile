@@ -363,11 +363,11 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
                             Container(
                               margin: EdgeInsets.symmetric(
                                 horizontal: screenWidth * 0.04, // Thay vì 15
-                                vertical: screenHeight * 0.03, // Thay vì 40
+                                vertical: screenHeight * 0.02, // Thay vì 40
                               ),
                               height:
                                   screenHeight *
-                                  0.25, // Tự động thay đổi theo màn hình
+                                  0.27, // Tự động thay đổi theo màn hình
                               width: double.infinity,
                               decoration: BoxDecoration(
                                 borderRadius: BorderRadius.circular(20),
@@ -539,7 +539,7 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
                               child: Padding(
                                 padding: EdgeInsets.symmetric(
                                   horizontal: screenHeight * 0.02, // Thay vì 10
-                                  vertical: screenWidth * 0.06, // Thay vì 110
+                                  vertical: screenWidth * 0.05, // Thay vì 110
                                 ),
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
