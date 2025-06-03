@@ -52,6 +52,7 @@ dependencies:
   flutter_local_notifications: ^18.0.0
   image_picker: ^1.0.4
   flutter_foreground_task: ^6.1.2
+  flutter_launcher_icons: ^0.14.3
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -104,3 +105,8 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+
+flutter_launcher_icons:
+  android: true # Chỉ định rằng bạn muốn tạo icon cho Android
+  ios: true # Bạn cũng có thể đặt là true nếu muốn tạo cho iOS
+  image_path: "assets/images/icons/HMES_logo.png"

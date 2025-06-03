@@ -605,7 +605,7 @@ class _CreateTicketState extends State<CreateTicket> {
     request.fields['Type'] = selectedType ?? '';
 
     if (selectedType == "Technical") {
-      request.fields['DeviceId'] = selectedDeviceId ?? '';
+      request.fields['DeviceItemId'] = selectedDeviceId ?? '';
     }
 
     // Gửi message (field text)
