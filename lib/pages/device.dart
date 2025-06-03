@@ -427,7 +427,7 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
                                           style: TextStyle(
                                             fontSize:
                                                 screenWidth *
-                                                0.033, // Nhỏ hơn một chút
+                                                0.034, // Nhỏ hơn một chút
                                             color: Colors.white,
                                           ),
                                         ),
@@ -480,7 +480,7 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
                                               style: TextStyle(
                                                 fontSize:
                                                     screenWidth *
-                                                    0.033, // Nhỏ hơn một chút
+                                                    0.034, // Nhỏ hơn một chút
                                                 color: Colors.white,
                                               ),
                                             ),
@@ -520,7 +520,7 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
                                             Text(
                                               'pH: ${ph[0].toStringAsFixed(1)} - ${ph[1].toStringAsFixed(1)}',
                                               style: TextStyle(
-                                                fontSize: screenWidth * 0.033,
+                                                fontSize: screenWidth * 0.034,
                                                 color: Colors.white,
                                               ),
                                             ),
@@ -559,7 +559,7 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
                                             Text(
                                               '${waterLevel[0]} - ${waterLevel[1]}',
                                               style: TextStyle(
-                                                fontSize: screenWidth * 0.033,
+                                                fontSize: screenWidth * 0.034,
                                                 color: Colors.white,
                                               ),
                                             ),
