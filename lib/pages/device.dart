@@ -283,10 +283,15 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
   String _getDeviceStatus = '';
   bool hasNewData = false;
   DeviceItemModel? _deviceItem;
+  PhaseGetModel? currentPhase;
   int selectedOption = 5; // Default value for the dropdown
   List<phaseResModel>? phaseRes;
   var dropdownItems = [];
   var customOptionValue = '__custom__';
+  List<double> soluteConcentration = [0, 0];
+  List<double> temperature = [0, 0];
+  List<double> ph = [0, 0];
+  List<int> waterLevel = [0, 1300];
 
   phaseResModel? selectedPhase;
 
@@ -363,11 +368,11 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
                             Container(
                               margin: EdgeInsets.symmetric(
                                 horizontal: screenWidth * 0.04, // Thay vì 15
-                                vertical: screenHeight * 0.03, // Thay vì 40
+                                vertical: screenHeight * 0.02, // Thay vì 40
                               ),
                               height:
                                   screenHeight *
-                                  0.25, // Tự động thay đổi theo màn hình
+                                  0.33, // Tự động thay đổi theo màn hình
                               width: double.infinity,
                               decoration: BoxDecoration(
                                 borderRadius: BorderRadius.circular(20),
@@ -385,32 +390,44 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
                                       top: screenHeight * 0.001, // Thay vì 10
                                       left: screenWidth * 0.06, // Thay vì 110
                                     ),
-                                    child: Row(
+                                    child: Column(
                                       crossAxisAlignment:
-                                          CrossAxisAlignment
-                                              .baseline, // Căn theo đường baseline
-                                      textBaseline:
-                                          TextBaseline
-                                              .alphabetic, // Đảm bảo căn chuẩn cho chữ
+                                          CrossAxisAlignment.start,
                                       children: [
-                                        Text(
-                                          _deviceItem
-                                                  ?.ioTData
-                                                  ?.soluteConcentration
-                                                  .toStringAsFixed(1) ??
-                                              '',
-                                          style: TextStyle(
-                                            fontSize: screenWidth * 0.2,
-                                            fontWeight: FontWeight.bold,
-                                            color: Colors.white,
-                                          ),
+                                        Row(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.baseline,
+                                          textBaseline: TextBaseline.alphabetic,
+                                          children: [
+                                            Text(
+                                              _deviceItem
+                                                      ?.ioTData
+                                                      ?.soluteConcentration
+                                                      ?.toStringAsFixed(1) ??
+                                                  '',
+                                              style: TextStyle(
+                                                fontSize: screenWidth * 0.2,
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.white,
+                                              ),
+                                            ),
+                                            SizedBox(width: 5),
+                                            Text(
+                                              'ppm',
+                                              style: TextStyle(
+                                                fontSize: screenWidth * 0.07,
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.white,
+                                              ),
+                                            ),
+                                          ],
                                         ),
-                                        SizedBox(width: 5), // Tạo khoảng cách
                                         Text(
-                                          'ppm',
+                                          '${soluteConcentration[0].toStringAsFixed(1)} - ${soluteConcentration[1].toStringAsFixed(1)} ppm',
                                           style: TextStyle(
-                                            fontSize: screenWidth * 0.07,
-                                            fontWeight: FontWeight.bold,
+                                            fontSize:
+                                                screenWidth *
+                                                0.034, // Nhỏ hơn một chút
                                             color: Colors.white,
                                           ),
                                         ),
@@ -420,6 +437,7 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
                                   //SizedBox(height: screenHeight * 0.1), // Thay vì 50
                                   Padding(
                                     padding: EdgeInsets.only(
+                                      top: screenHeight * 0.02, // Thay vì 10
                                       left: screenWidth * 0.06, // Thay vì 110
                                       right: screenWidth * 0.06, // Thay vì 110
                                     ),
@@ -427,68 +445,122 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
                                       mainAxisAlignment:
                                           MainAxisAlignment.spaceBetween,
                                       children: [
-                                        Row(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.start,
+                                        Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
                                           children: [
-                                            Icon(
-                                              Icons.thermostat,
-                                              color: Colors.white,
-                                              size: screenWidth * 0.06,
+                                            Row(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.start,
+                                              children: [
+                                                Icon(
+                                                  Icons.thermostat,
+                                                  color: Colors.white,
+                                                  size: screenWidth * 0.06,
+                                                ),
+                                                SizedBox(
+                                                  width: screenWidth * 0.02,
+                                                ),
+                                                Text(
+                                                  _deviceItem
+                                                          ?.ioTData
+                                                          ?.temperature
+                                                          .toStringAsFixed(1) ??
+                                                      '',
+                                                  style: TextStyle(
+                                                    color: Colors.white,
+                                                    fontSize:
+                                                        screenWidth * 0.055,
+                                                  ),
+                                                ),
+                                              ],
                                             ),
-                                            SizedBox(width: screenWidth * 0.02),
                                             Text(
-                                              _deviceItem?.ioTData?.temperature
-                                                      .toStringAsFixed(1) ??
-                                                  '',
+                                              '${temperature[0].toStringAsFixed(1)} - ${temperature[1].toStringAsFixed(1)} °C',
                                               style: TextStyle(
+                                                fontSize:
+                                                    screenWidth *
+                                                    0.034, // Nhỏ hơn một chút
                                                 color: Colors.white,
-                                                fontSize: screenWidth * 0.055,
                                               ),
                                             ),
                                           ],
                                         ),
-                                        Row(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.start,
+                                        Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
                                           children: [
-                                            Image(
-                                              image: const AssetImage(
-                                                'assets/images/icons/ph.png',
-                                              ),
-                                              width: screenWidth * 0.055,
-                                              height: screenWidth * 0.055,
-                                              color: Colors.white,
+                                            Row(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.start,
+                                              children: [
+                                                Image(
+                                                  image: const AssetImage(
+                                                    'assets/images/icons/ph.png',
+                                                  ),
+                                                  width: screenWidth * 0.055,
+                                                  height: screenWidth * 0.055,
+                                                  color: Colors.white,
+                                                ),
+                                                SizedBox(
+                                                  width: screenWidth * 0.02,
+                                                ),
+                                                Text(
+                                                  _deviceItem?.ioTData?.ph
+                                                          .toStringAsFixed(2) ??
+                                                      '',
+                                                  style: TextStyle(
+                                                    color: Colors.white,
+                                                    fontSize:
+                                                        screenWidth * 0.055,
+                                                  ),
+                                                ),
+                                              ],
                                             ),
-                                            SizedBox(width: screenWidth * 0.02),
                                             Text(
-                                              _deviceItem?.ioTData?.ph
-                                                      .toStringAsFixed(2) ??
-                                                  '',
+                                              'pH: ${ph[0].toStringAsFixed(1)} - ${ph[1].toStringAsFixed(1)}',
                                               style: TextStyle(
+                                                fontSize: screenWidth * 0.034,
                                                 color: Colors.white,
-                                                fontSize: screenWidth * 0.055,
                                               ),
                                             ),
                                           ],
                                         ),
-                                        Row(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.start,
+                                        Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
                                           children: [
-                                            Icon(
-                                              Icons.water_drop,
-                                              color: Colors.white,
-                                              size: screenWidth * 0.06,
+                                            Row(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.start,
+                                              children: [
+                                                Icon(
+                                                  Icons.water_drop,
+                                                  color: Colors.white,
+                                                  size: screenWidth * 0.06,
+                                                ),
+                                                SizedBox(
+                                                  width: screenWidth * 0.02,
+                                                ),
+                                                Text(
+                                                  _deviceItem
+                                                          ?.ioTData
+                                                          ?.waterLevel
+                                                          .toString() ??
+                                                      '',
+                                                  style: TextStyle(
+                                                    color: Colors.white,
+                                                    fontSize:
+                                                        screenWidth * 0.055,
+                                                  ),
+                                                ),
+                                              ],
                                             ),
-                                            SizedBox(width: screenWidth * 0.02),
                                             Text(
-                                              _deviceItem?.ioTData?.waterLevel
-                                                      .toString() ??
-                                                  '',
+                                              '${waterLevel[0]} - ${waterLevel[1]}',
                                               style: TextStyle(
+                                                fontSize: screenWidth * 0.034,
                                                 color: Colors.white,
-                                                fontSize: screenWidth * 0.055,
                                               ),
                                             ),
                                           ],
@@ -497,7 +569,7 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
                                     ),
                                   ),
                                   SizedBox(
-                                    height: screenHeight * 0.03,
+                                    height: screenHeight * 0.026,
                                   ), // Thay vì 10
                                   Padding(
                                     padding: EdgeInsets.only(
@@ -539,7 +611,7 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
                               child: Padding(
                                 padding: EdgeInsets.symmetric(
                                   horizontal: screenHeight * 0.02, // Thay vì 10
-                                  vertical: screenWidth * 0.06, // Thay vì 110
+                                  vertical: screenWidth * 0.05, // Thay vì 110
                                 ),
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1040,6 +1112,95 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
     );
   }
 
+  Future<void> _getCurrentPhase() async {
+    if (_deviceItem?.phases == null ||
+        !_deviceItem!.phases!.any((phase) => phase.isSelected)) {
+      setState(() {
+        soluteConcentration = [0.0, 0.0];
+        temperature = [0.0, 0.0];
+        ph = [0.0, 0.0];
+        waterLevel = [0, 0];
+      });
+      return;
+    } // Không cần gọi API nếu không có phaseId
+    String token = (await getToken()).toString();
+    String refreshToken = (await getRefreshToken()).toString();
+    String deviceId = (await getDeviceId()).toString();
+
+    if (!mounted) return; // Kiểm tra widget đã bị unmount hay chưa
+
+    final response = await http.get(
+      Uri.parse(
+        '${apiUrl}target-value/${_deviceItem!.plantId}/${_deviceItem!.phases!.firstWhere((phase) => phase.isSelected).id}',
+      ),
+      headers: <String, String>{
+        'Content-Type': 'application/json; charset=UTF-8',
+        'Cookie': 'DeviceId=$deviceId; RefreshToken=$refreshToken',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    String? newAccessToken = response.headers['new-access-token'];
+    if (newAccessToken != null) {
+      updateToken(newAccessToken);
+    }
+
+    if (!mounted) return; // Kiểm tra lại widget trước khi setState
+
+    if (response.statusCode == 200) {
+      Map<String, dynamic> responseJson = jsonDecode(response.body);
+      Map<String, dynamic> data = responseJson['response']?['data'] ?? {};
+      setState(() {
+        currentPhase = PhaseGetModel.fromJson(data);
+        _isLoading = false;
+      });
+
+      if (currentPhase?.target != null) {
+        for (var entry in currentPhase!.target!) {
+          switch (entry.type) {
+            case 'SoluteConcentration':
+              soluteConcentration = [entry.minValue, entry.maxValue];
+              break;
+
+            case 'Temperature':
+              temperature = [entry.minValue, entry.maxValue];
+              break;
+
+            case 'Ph':
+              ph = [entry.minValue, entry.maxValue];
+              break;
+
+            case 'WaterLevel':
+              waterLevel = [entry.minValue.toInt(), entry.maxValue.toInt()];
+              break;
+          }
+        }
+      }
+    } else if (response.statusCode == 401) {
+      if (mounted) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => Logout(controller: widget.controller),
+            ),
+          );
+        });
+      }
+    } else {
+      Map<String, dynamic> responseJson = jsonDecode(response.body);
+      String statusMessage = responseJson['message'] ?? 'Đã xảy ra lỗi';
+      Fluttertoast.showToast(
+        msg: statusMessage,
+        toastLength: Toast.LENGTH_SHORT,
+        gravity: ToastGravity.BOTTOM,
+        timeInSecForIosWeb: 1,
+        textColor: Colors.black,
+        fontSize: 16.0,
+      );
+    }
+  }
+
   void _goToSetPhase(String? newValue) async {
     final result = await Navigator.push(
       context,
@@ -1342,6 +1503,7 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
         _deviceItem?.setIoTData(ioTData); // Cập nhật dữ liệu IoT vào thiết bị
         _deviceItem?.setPhases(phaseRes ?? []);
       });
+      await _getCurrentPhase(); // Lấy giai đoạn hiện tại
       // Xử lý dữ liệu thiết bị ở đây
       _isLoading = false;
     } else if (response.statusCode == 401) {
@@ -2167,6 +2329,12 @@ class EditPhasePage extends StatefulWidget {
 
 class _EditPhasePageState extends State<EditPhasePage> {
   final ScrollController _scrollController = ScrollController();
+  String? _errorLowSoluteConcentrationText;
+  String? _errorHighSoluteConcentrationText;
+  String? _errorLowTemperatureText;
+  String? _errorHighTemperatureText;
+  String? _errorLowPhText;
+  String? _errorHighPhText;
   String? _errorLowWaterLevelText;
   String? _errorHighWaterLevelText;
   bool _isCreatingPhase = false;
@@ -2384,10 +2552,27 @@ class _EditPhasePageState extends State<EditPhasePage> {
                                 controller: _soluteLowController,
                                 focusNode: _soluteLowFocus,
                                 keyboardType: TextInputType.number,
-                                onChanged:
-                                    (val) =>
-                                        soluteConcentration[0] =
-                                            double.tryParse(val) ?? 0,
+                                errorText: _errorLowSoluteConcentrationText,
+                                onChanged: (value) {
+                                  final parsed = double.tryParse(value);
+                                  if (parsed == null || parsed < 0) {
+                                    setState(
+                                      () =>
+                                          _errorLowSoluteConcentrationText =
+                                              'Giá trị tối thiểu là 0',
+                                    );
+                                  } else if (parsed >= soluteConcentration[1]) {
+                                    setState(() {
+                                      _errorLowSoluteConcentrationText =
+                                          'Giá trị thấp nhất phải nhỏ hơn giá trị cao nhất';
+                                    });
+                                  } else {
+                                    setState(() {
+                                      _errorLowSoluteConcentrationText = null;
+                                      soluteConcentration[0] = parsed;
+                                    });
+                                  }
+                                },
                               ),
                               buildInput(
                                 label: 'Giá trị cao nhất',
@@ -2395,10 +2580,27 @@ class _EditPhasePageState extends State<EditPhasePage> {
                                 controller: _soluteHighController,
                                 focusNode: _soluteHighFocus,
                                 keyboardType: TextInputType.number,
-                                onChanged:
-                                    (val) =>
-                                        soluteConcentration[1] =
-                                            double.tryParse(val) ?? 0,
+                                errorText: _errorHighSoluteConcentrationText,
+                                onChanged: (value) {
+                                  final parsed = double.tryParse(value);
+                                  if (parsed == null || parsed < 0) {
+                                    setState(
+                                      () =>
+                                          _errorHighSoluteConcentrationText =
+                                              'Giá trị tối thiểu là 0',
+                                    );
+                                  } else if (parsed <= soluteConcentration[0]) {
+                                    setState(() {
+                                      _errorHighSoluteConcentrationText =
+                                          'Giá trị cao nhất phải lớn hơn giá trị thấp nhất';
+                                    });
+                                  } else {
+                                    setState(() {
+                                      _errorHighSoluteConcentrationText = null;
+                                      soluteConcentration[1] = parsed;
+                                    });
+                                  }
+                                },
                               ),
                               const Text(
                                 "Nhiệt độ (°C)",
@@ -2410,10 +2612,27 @@ class _EditPhasePageState extends State<EditPhasePage> {
                                 controller: _tempLowController,
                                 focusNode: _tempLowFocus,
                                 keyboardType: TextInputType.number,
-                                onChanged:
-                                    (val) =>
-                                        temperature[0] =
-                                            double.tryParse(val) ?? 0,
+                                errorText: _errorLowTemperatureText,
+                                onChanged: (value) {
+                                  final parsed = double.tryParse(value);
+                                  if (parsed == null || parsed < 0) {
+                                    setState(
+                                      () =>
+                                          _errorLowTemperatureText =
+                                              'Giá trị tối thiểu là 0',
+                                    );
+                                  } else if (parsed >= temperature[1]) {
+                                    setState(() {
+                                      _errorLowTemperatureText =
+                                          'Giá trị thấp nhất phải nhỏ hơn giá trị cao nhất';
+                                    });
+                                  } else {
+                                    setState(() {
+                                      _errorLowTemperatureText = null;
+                                      temperature[0] = parsed;
+                                    });
+                                  }
+                                },
                               ),
                               buildInput(
                                 label: 'Giá trị cao nhất',
@@ -2421,10 +2640,27 @@ class _EditPhasePageState extends State<EditPhasePage> {
                                 controller: _tempHighController,
                                 focusNode: _tempHighFocus,
                                 keyboardType: TextInputType.number,
-                                onChanged:
-                                    (val) =>
-                                        temperature[1] =
-                                            double.tryParse(val) ?? 0,
+                                errorText: _errorHighTemperatureText,
+                                onChanged: (value) {
+                                  final parsed = double.tryParse(value);
+                                  if (parsed == null || parsed < 0) {
+                                    setState(
+                                      () =>
+                                          _errorHighTemperatureText =
+                                              'Giá trị tối thiểu là 0',
+                                    );
+                                  } else if (parsed <= temperature[0]) {
+                                    setState(() {
+                                      _errorHighTemperatureText =
+                                          'Giá trị cao nhất phải lớn hơn giá trị thấp nhất';
+                                    });
+                                  } else {
+                                    setState(() {
+                                      _errorHighTemperatureText = null;
+                                      temperature[1] = parsed;
+                                    });
+                                  }
+                                },
                               ),
                               const Text(
                                 "Nồng độ pH",
@@ -2436,8 +2672,27 @@ class _EditPhasePageState extends State<EditPhasePage> {
                                 controller: _phLowController,
                                 focusNode: _phLowFocus,
                                 keyboardType: TextInputType.number,
-                                onChanged:
-                                    (val) => ph[0] = double.tryParse(val) ?? 0,
+                                errorText: _errorLowPhText,
+                                onChanged: (value) {
+                                  final parsed = double.tryParse(value);
+                                  if (parsed == null || parsed < 0) {
+                                    setState(
+                                      () =>
+                                          _errorLowPhText =
+                                              'Giá trị tối thiểu là 0',
+                                    );
+                                  } else if (parsed >= ph[1]) {
+                                    setState(() {
+                                      _errorLowPhText =
+                                          'Giá trị thấp nhất phải nhỏ hơn giá trị cao nhất';
+                                    });
+                                  } else {
+                                    setState(() {
+                                      _errorLowPhText = null;
+                                      ph[0] = parsed;
+                                    });
+                                  }
+                                },
                               ),
                               buildInput(
                                 label: 'Giá trị cao nhất',
@@ -2445,8 +2700,27 @@ class _EditPhasePageState extends State<EditPhasePage> {
                                 controller: _phHighController,
                                 focusNode: _phHighFocus,
                                 keyboardType: TextInputType.number,
-                                onChanged:
-                                    (val) => ph[1] = double.tryParse(val) ?? 0,
+                                errorText: _errorHighPhText,
+                                onChanged: (value) {
+                                  final parsed = double.tryParse(value);
+                                  if (parsed == null || parsed < 0) {
+                                    setState(
+                                      () =>
+                                          _errorHighPhText =
+                                              'Giá trị tối thiểu là 0',
+                                    );
+                                  } else if (parsed <= ph[0]) {
+                                    setState(() {
+                                      _errorHighPhText =
+                                          'Giá trị cao nhất phải lớn hơn giá trị thấp nhất';
+                                    });
+                                  } else {
+                                    setState(() {
+                                      _errorHighPhText = null;
+                                      ph[1] = parsed;
+                                    });
+                                  }
+                                },
                               ),
                               const Text(
                                 "Mức nước",
